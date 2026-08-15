@@ -341,7 +341,21 @@
             }
 
             try {
-                let src = cv.imread(sourceCanvas);
+                // Prilagodi velikost platna na največ 800px za hitrejšo obdelavo in preprečitev zmrzovanja brskalnika
+                const MAX_DIM = 800;
+                let processCanvas = sourceCanvas;
+
+                if (sourceCanvas.width > MAX_DIM || sourceCanvas.height > MAX_DIM) {
+                    const scale = Math.min(MAX_DIM / sourceCanvas.width, MAX_DIM / sourceCanvas.height);
+                    const scaledCanvas = document.createElement('canvas');
+                    scaledCanvas.width = Math.round(sourceCanvas.width * scale);
+                    scaledCanvas.height = Math.round(sourceCanvas.height * scale);
+                    const sCtx = scaledCanvas.getContext('2d');
+                    sCtx.drawImage(sourceCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
+                    processCanvas = scaledCanvas;
+                }
+
+                let src = cv.imread(processCanvas);
                 let gray = new cv.Mat();
                 cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
@@ -350,7 +364,7 @@
 
                 // Morfološko raztezanje (Dilation) za povezavo vseh ločenih lokov in oseh v enoten blobl
                 let dilated = new cv.Mat();
-                let kernelSize = Math.max(15, Math.floor(Math.min(sourceCanvas.width, sourceCanvas.height) / 20));
+                let kernelSize = Math.max(15, Math.floor(Math.min(processCanvas.width, processCanvas.height) / 20));
                 let M_kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(kernelSize, kernelSize));
                 cv.dilate(binary, dilated, M_kernel);
 
@@ -360,7 +374,7 @@
 
                 let bestContour = null;
                 let maxArea = 0;
-                let minAreaThreshold = (sourceCanvas.width * sourceCanvas.height) * 0.01;
+                let minAreaThreshold = (processCanvas.width * processCanvas.height) * 0.01;
 
                 for (let i = 0; i < contours.size(); ++i) {
                     let cnt = contours.get(i);
@@ -385,13 +399,15 @@
                     pts.push({ x: vertices[i].x, y: vertices[i].y });
                 }
 
-                pts.sort((a, b) => (a.x + a.y) - (b.x + b.y));
-                let topLeft = pts[0];
-                let bottomRight = pts[3];
-                let rem = [pts[1], pts[2]];
-                rem.sort((a, b) => a.x - b.x);
-                let bottomLeft = rem[0];
-                let topRight = rem[1];
+                // Pravilno razvrščanje 4 oglišč (Zgoraj-Levo, Zgoraj-Desno, Spodaj-Desno, Spodaj-Levo)
+                let sortedY = pts.slice().sort((a, b) => a.y - b.y);
+                let topTwo = sortedY.slice(0, 2).sort((a, b) => a.x - b.x);
+                let bottomTwo = sortedY.slice(2, 4).sort((a, b) => a.x - b.x);
+
+                let topLeft = topTwo[0];
+                let topRight = topTwo[1];
+                let bottomLeft = bottomTwo[0];
+                let bottomRight = bottomTwo[1];
 
                 let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
                     topLeft.x, topLeft.y,
