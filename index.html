@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HexArc Code</title>
+    <!-- Zunanja knjižnica OpenCV.js priložena lokalno za delovanje brez povezave -->
+    <script src="opencv.js" async onload="onOpenCvReady()"></script>
     <style>
         :root {
             --bg-color: #f8fafc;
@@ -71,14 +73,16 @@
         .btn-secondary:hover { background-color: #475569; }
         .btn-danger { background-color: var(--danger); }
         .btn-danger:hover { background-color: #dc2626; }
+        .btn-scan { background-color: #10b981; margin-top: 10px; }
+        .btn-scan:hover { background-color: #059669; }
 
         .canvas-container {
             background: white; border-radius: 12px; padding: 10px; margin-top: 20px; 
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); border: 1px solid var(--border);
-            position: relative;
+            position: relative; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center;
         }
         
-        canvas { display: block; border-radius: 8px; }
+        canvas { display: block; border-radius: 8px; max-width: 100%; height: auto; }
 
         .result-box {
             margin-top: 10px; width: 100%; padding: 16px; background-color: #f8fafc;
@@ -131,19 +135,21 @@
         <div class="card">
             <h2>2. Preberi Kodo</h2>
             <div style="display: flex; gap: 10px; width: 100%;">
-                <button onclick="startCamera()">Skeniraj s kamero</button>
+                <button onclick="startCamera()">Odpri kamero</button>
                 <button class="btn-danger" id="stopCamBtn" onclick="stopCamera()" style="display:none;">Ustavi kamero</button>
             </div>
 
             <div class="camera-wrapper" id="cameraWrapper">
                 <video id="webcam" autoplay playsinline></video>
                 <div class="overlay">
-                    <!-- Tarča za kamero -->
                     <svg viewBox="0 0 100 100">
                         <polygon points="50,15 80,32.5 80,67.5 50,85 20,67.5 20,32.5" fill="none" stroke="#22c55e" stroke-width="2" stroke-dasharray="4"></polygon>
                         <line x1="50" y1="15" x2="50" y2="0" stroke="#22c55e" stroke-width="2"></line>
                         <polygon points="50,0 45,8 55,8" fill="#22c55e"></polygon>
                     </svg>
+                </div>
+                <div style="padding: 10px; background: rgba(0,0,0,0.6); width: 100%; box-sizing: border-box; text-align: center; position: absolute; bottom: 0;">
+                    <button class="btn-scan" onclick="captureAndScan()">Skeniraj trenutno sliko</button>
                 </div>
             </div>
             
@@ -153,7 +159,7 @@
             </div>
             
             <div class="canvas-container" id="debugCanvasContainer" style="display:none;">
-                <label style="text-align:center; display:block; color:#64748b; font-size:0.8rem;">Vizualni pregled branja (Zeleno=1, Rdeče=0)</label>
+                <label style="text-align:center; display:block; color:#64748b; font-size:0.8rem; margin-bottom: 5px;">Vizualni pregled branja (Zeleno=1, Rdeče=0)</label>
                 <canvas id="debugCanvas" width="400" height="400"></canvas>
             </div>
 
@@ -177,6 +183,13 @@
         const KEEPOUT_MARGIN_PX = 14; 
         const AXIS_ANGLES = [-Math.PI / 2, Math.PI / 6, (5 * Math.PI) / 6];
 
+        let cvReady = false;
+
+        function onOpenCvReady() {
+            cvReady = true;
+            console.log("OpenCV.js je pripravljen.");
+        }
+
         function calculateChecksum(dataBytes) {
             let chk = 0;
             for (let i = 0; i < dataBytes.length; i++) chk = (chk + dataBytes[i]) % 256;
@@ -195,14 +208,12 @@
             const ctx = canvas.getContext('2d');
             document.getElementById('genMsg').innerText = "";
 
-            // Očistimo s fiksno belo (ključno za bralnik!)
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
             const encoder = new TextEncoder();
             let textBytes = Array.from(encoder.encode(text));
             
-            // Omejitev na max 200 bajtov, da preprečimo overflow
             if (textBytes.length > 200) {
                 textBytes = textBytes.slice(0, 200);
                 showMessage('genMsg', "Opozorilo: Besedilo je bilo skrajšano na 200 znakov.", true);
@@ -216,19 +227,18 @@
                 for (let i = 7; i >= 0; i--) bitArray.push((byte >> i) & 1);
             });
 
-            // 1. PRED-IZRAČUN (Dry Run) - Da ugotovimo, kako dolge morajo biti osi!
             let simBitIndex = 0;
             let finalRadius = RING_START;
             
             let tempRadius = RING_START;
             while (simBitIndex < bitArray.length && tempRadius <= MAX_RADIUS) {
-                finalRadius = tempRadius; // Zabeležimo zadnji uporabljen radij
+                finalRadius = tempRadius;
                 const keepoutAngle = KEEPOUT_MARGIN_PX / tempRadius;
                 const usableSectorAngle = ((2 * Math.PI) / 3) - (2 * keepoutAngle);
                 const bitsPerSector = Math.floor((usableSectorAngle * tempRadius) / (LINE_THICKNESS + 2));
                 
                 if (bitsPerSector > 0) {
-                    simBitIndex += (bitsPerSector * 3); // 3 sektorji
+                    simBitIndex += (bitsPerSector * 3);
                 }
                 tempRadius += RING_GAP;
             }
@@ -237,7 +247,6 @@
                 showMessage('genMsg', "Koda je polna! Del besedila bo morda odrezan.", true);
             }
 
-            // 2. ISKALNI VZOREC IN DINAMIČNE OSI
             ctx.fillStyle = '#000000';
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 4;
@@ -256,7 +265,7 @@
             ctx.stroke();
 
             // 3 Podaljšane Osi prilagojene na finalRadius
-            const AXIS_END_RADIUS = finalRadius + 12; // Malo čez zadnji obroč
+            const AXIS_END_RADIUS = finalRadius + 12;
             
             AXIS_ANGLES.forEach((angle, index) => {
                 const startX = CENTER + HEX_RADIUS * Math.cos(angle);
@@ -273,7 +282,6 @@
                 if (index === 0) {
                     const triSize = 12;
                     ctx.beginPath();
-                    // Vrh trikotnika kaže stran od centra
                     ctx.moveTo(endX + triSize * Math.cos(angle), endY + triSize * Math.sin(angle));
                     ctx.lineTo(endX + triSize * Math.cos(angle + 2.0), endY + triSize * Math.sin(angle + 2.0));
                     ctx.lineTo(endX + triSize * Math.cos(angle - 2.0), endY + triSize * Math.sin(angle - 2.0));
@@ -282,7 +290,7 @@
                 }
             });
 
-            // 3. PODATKOVNI OBROČI
+            // PODATKOVNI OBROČI
             let bitIndex = 0;
             let currentRadius = RING_START;
             ctx.lineWidth = LINE_THICKNESS;
@@ -306,7 +314,6 @@
                                 const bitEnd = bitStart + anglePerBit;
                                 
                                 ctx.beginPath();
-                                // Dodamo +0.02 radiana prekrivanja, da preprečimo mikroskopske vrzeli med enicami
                                 ctx.arc(CENTER, CENTER, currentRadius, bitStart, bitEnd + 0.02);
                                 ctx.stroke();
                             }
@@ -326,24 +333,138 @@
             link.click();
         }
 
-        function decodeImage(sourceCanvas) {
-            // Naredimo "Debug" platno, da vizualno pokažemo uporabniku, kje bralnik bere
-            const debugContainer = document.getElementById('debugCanvasContainer');
-            const debugCanvas = document.getElementById('debugCanvas');
-            debugContainer.style.display = "block";
-            const dCtx = debugCanvas.getContext('2d');
-            
-            // Prekopiramo original na debug platno
-            dCtx.drawImage(sourceCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-            
+        // --- ROBUSNI BRALNIK Z ZDRUŽEVANJEM ELEMENTOV (DILATION/CLOSING) TER DINAMIČNO ORIENTACIJO ---
+
+        function processAndWarpCanvas(sourceCanvas) {
+            if (!cvReady || typeof cv === 'undefined') {
+                return sourceCanvas;
+            }
+
+            try {
+                let src = cv.imread(sourceCanvas);
+                let gray = new cv.Mat();
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+                let binary = new cv.Mat();
+                cv.threshold(gray, binary, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU);
+
+                // Morfološko raztezanje (Dilation) za povezavo vseh ločenih lokov in oseh v enoten blobl
+                let dilated = new cv.Mat();
+                let kernelSize = Math.max(15, Math.floor(Math.min(sourceCanvas.width, sourceCanvas.height) / 20));
+                let M_kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(kernelSize, kernelSize));
+                cv.dilate(binary, dilated, M_kernel);
+
+                let contours = new cv.MatVector();
+                let hierarchy = new cv.Mat();
+                cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+                let bestContour = null;
+                let maxArea = 0;
+                let minAreaThreshold = (sourceCanvas.width * sourceCanvas.height) * 0.01;
+
+                for (let i = 0; i < contours.size(); ++i) {
+                    let cnt = contours.get(i);
+                    let area = cv.contourArea(cnt);
+                    if (area > maxArea && area >= minAreaThreshold) {
+                        maxArea = area;
+                        bestContour = cnt;
+                    }
+                }
+
+                if (!bestContour) {
+                    gray.delete(); binary.delete(); dilated.delete(); M_kernel.delete(); contours.delete(); hierarchy.delete(); src.delete();
+                    return sourceCanvas;
+                }
+
+                // Poiščemo pravokotnik z najmanjšo površino okoli združenega simbola (minAreaRect)
+                let rect = cv.minAreaRect(bestContour);
+                let vertices = cv.RotatedRect.points(rect);
+
+                let pts = [];
+                for (let i = 0; i < 4; i++) {
+                    pts.push({ x: vertices[i].x, y: vertices[i].y });
+                }
+
+                pts.sort((a, b) => (a.x + a.y) - (b.x + b.y));
+                let topLeft = pts[0];
+                let bottomRight = pts[3];
+                let rem = [pts[1], pts[2]];
+                rem.sort((a, b) => a.x - b.x);
+                let bottomLeft = rem[0];
+                let topRight = rem[1];
+
+                let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+                    topLeft.x, topLeft.y,
+                    topRight.x, topRight.y,
+                    bottomRight.x, bottomRight.y,
+                    bottomLeft.x, bottomLeft.y
+                ]);
+
+                const margin = 15;
+                let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+                    margin, margin,
+                    CANVAS_SIZE - margin, margin,
+                    CANVAS_SIZE - margin, CANVAS_SIZE - margin,
+                    margin, CANVAS_SIZE - margin
+                ]);
+
+                let M_warp = cv.getPerspectiveTransform(srcTri, dstTri);
+                let dst = new cv.Mat();
+                let dsize = new cv.Size(CANVAS_SIZE, CANVAS_SIZE);
+                cv.warpPerspective(src, dst, M_warp, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar(255, 255, 255, 255));
+
+                let warpedCanvas = document.createElement('canvas');
+                warpedCanvas.width = CANVAS_SIZE;
+                warpedCanvas.height = CANVAS_SIZE;
+                cv.imshow(warpedCanvas, dst);
+
+                src.delete(); gray.delete(); binary.delete(); dilated.delete(); M_kernel.delete(); contours.delete(); hierarchy.delete();
+                srcTri.delete(); dstTri.delete(); M_warp.delete(); dst.delete();
+
+                return warpedCanvas;
+            } catch (e) {
+                console.error("Napaka pri OpenCV obdelavi:", e);
+                return sourceCanvas;
+            }
+        }
+
+        // Iskanje dejanskega zunanjega radija osi na poravnani sliki za natančno lokacijo trikotnika
+        function findOuterAxisRadius(canvas) {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const imgData = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            const data = imgData.data;
+
+            let maxR = RING_START;
+            for (let r = MAX_RADIUS + 25; r >= RING_START; r -= 2) {
+                let darkFound = false;
+                for (let step = 0; step < 72; step++) {
+                    const angle = (step * Math.PI) / 36;
+                    const px = Math.round(CENTER + r * Math.cos(angle));
+                    const py = Math.round(CENTER + r * Math.sin(angle));
+                    if (px >= 0 && px < CANVAS_SIZE && py >= 0 && py < CANVAS_SIZE) {
+                        const idx = (py * CANVAS_SIZE + px) * 4;
+                        if ((data[idx] + data[idx+1] + data[idx+2]) / 3 < 140) {
+                            darkFound = true;
+                            break;
+                        }
+                    }
+                }
+                if (darkFound) {
+                    maxR = r;
+                    break;
+                }
+            }
+            return maxR;
+        }
+
+        // Vzorčenje bitov za poljuben kot rotacije
+        function tryDecodeWithRotationAngle(sourceCanvas, rotationAngle) {
             const ctx = sourceCanvas.getContext('2d', { willReadFrequently: true });
             const imgData = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
             const data = imgData.data;
 
-            const cx = CANVAS_SIZE / 2;
-            const cy = CANVAS_SIZE / 2;
-
             let readBits = [];
+            let samplePoints = [];
             let currentRadius = RING_START;
 
             while (currentRadius <= MAX_RADIUS) {
@@ -354,17 +475,14 @@
 
                 if (bitsPerSector > 0) {
                     for (let s = 0; s < 3; s++) {
-                        const startSectorAngle = AXIS_ANGLES[s] + keepoutAngle;
+                        const startSectorAngle = AXIS_ANGLES[s] + rotationAngle + keepoutAngle;
                         
                         for (let b = 0; b < bitsPerSector; b++) {
                             const angle = startSectorAngle + (b * anglePerBit) + (anglePerBit / 2);
-                            const sampleX = Math.round(cx + currentRadius * Math.cos(angle));
-                            const sampleY = Math.round(cy + currentRadius * Math.sin(angle));
+                            const sampleX = Math.round(CENTER + currentRadius * Math.cos(angle));
+                            const sampleY = Math.round(CENTER + currentRadius * Math.sin(angle));
 
-                            // ZANESLJIVO BRANJE: Ne gledamo samo 1 piksla, ampak 3x3 mrežo.
-                            // Iščemo "najtemnejši" piksel v bližini, da izničimo vpliv mehkih robov (anti-aliasing).
                             let minBrightness = 255; 
-                            
                             for (let dy = -1; dy <= 1; dy++) {
                                 for (let dx = -1; dx <= 1; dx++) {
                                     const px = sampleX + dx;
@@ -377,33 +495,27 @@
                                 }
                             }
                             
-                            // Če je najtemnejši piksel v okolici temnejši od 140 (srednje siva), je to črna črta (1)
                             const isBitOne = minBrightness < 140;
                             readBits.push(isBitOne ? 1 : 0);
-                            
-                            // Nariši debug piko (Zelena = 1, Rdeča = 0)
-                            dCtx.fillStyle = isBitOne ? '#22c55e' : '#ef4444';
-                            dCtx.fillRect(sampleX - 1.5, sampleY - 1.5, 3, 3);
+                            samplePoints.push({ x: sampleX, y: sampleY, isOne: isBitOne });
                         }
                     }
                 }
                 currentRadius += RING_GAP;
             }
 
-            // Dekodiranje bitov v bajte
             let bytes = [];
             for (let i = 0; i < readBits.length; i += 8) {
-                if (i + 8 > readBits.length) break; // Ne upoštevamo nepopolnih bajtov na koncu
+                if (i + 8 > readBits.length) break;
                 let byteVal = 0;
                 for (let b = 0; b < 8; b++) byteVal = (byteVal << 1) | readBits[i + b];
                 bytes.push(byteVal);
             }
 
-            if (bytes.length < 2) return null;
+            if (bytes.length < 2) return { text: null, samplePoints };
 
             const length = bytes[0];
-            // Zaščita: Če je dolžina napačna/koruptirana, prekini
-            if (length === 0 || length > 200 || bytes.length < length + 2) return null;
+            if (length === 0 || length > 200 || bytes.length < length + 2) return { text: null, samplePoints };
 
             const textBytes = bytes.slice(1, length + 1);
             const readChecksum = bytes[length + 1];
@@ -411,11 +523,54 @@
             if (calculateChecksum(textBytes) === readChecksum) {
                 try {
                     const decoder = new TextDecoder();
-                    return decoder.decode(new Uint8Array(textBytes));
-                } catch(e) { return null; }
+                    return { text: decoder.decode(new Uint8Array(textBytes)), samplePoints };
+                } catch(e) { return { text: null, samplePoints }; }
             }
 
-            return null; // Checksum ni uspel
+            return { text: null, samplePoints };
+        }
+
+        function decodeImage(sourceCanvas) {
+            const debugContainer = document.getElementById('debugCanvasContainer');
+            const debugCanvas = document.getElementById('debugCanvas');
+            debugContainer.style.display = "block";
+            const dCtx = debugCanvas.getContext('2d');
+
+            // 1. Zaznava in perspektivna poravnava z OpenCV združevanjem
+            const warpedCanvas = processAndWarpCanvas(sourceCanvas);
+
+            // Narišemo poravnano sliko na debug canvas
+            dCtx.drawImage(warpedCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            // 2. Dinamično iskanje zunanjega radija osi in rotacijskega kota
+            const detectedOuterRadius = findOuterAxisRadius(warpedCanvas);
+
+            let bestResult = null;
+            let bestPoints = [];
+
+            // Preiščemo rotacije s korakom 5 stopinj (ter 120° sektorje), da zagotovimo delovanje za poljubno rotacijo
+            for (let deg = 0; deg < 120; deg += 5) {
+                const baseRad = (deg * Math.PI) / 180;
+                for (let s = 0; s < 3; s++) {
+                    const rotAngle = baseRad + (s * ((2 * Math.PI) / 3));
+                    const res = tryDecodeWithRotationAngle(warpedCanvas, rotAngle);
+                    if (res.samplePoints.length > 0 && bestPoints.length === 0) bestPoints = res.samplePoints;
+                    if (res.text) {
+                        bestResult = res.text;
+                        bestPoints = res.samplePoints;
+                        break;
+                    }
+                }
+                if (bestResult) break;
+            }
+
+            // Narišemo vzorčevalne točke bitov (zeleno = 1, rdeče = 0)
+            bestPoints.forEach(pt => {
+                dCtx.fillStyle = pt.isOne ? '#22c55e' : '#ef4444';
+                dCtx.fillRect(pt.x - 1.5, pt.y - 1.5, 3, 3);
+            });
+
+            return bestResult;
         }
 
         function showResult(text, success) {
@@ -442,17 +597,17 @@
                 const img = new Image();
                 img.onload = function() {
                     const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = CANVAS_SIZE;
-                    tempCanvas.height = CANVAS_SIZE;
+                    tempCanvas.width = img.width || CANVAS_SIZE;
+                    tempCanvas.height = img.height || CANVAS_SIZE;
                     const ctx = tempCanvas.getContext('2d');
                     
                     ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-                    ctx.drawImage(img, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                    ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                    ctx.drawImage(img, 0, 0);
 
                     const result = decodeImage(tempCanvas);
                     if (result) showResult("Prebrano: " + result, true);
-                    else showResult("Napaka: Kode ni bilo mogoče prebrati. Preveri 'Debug' sliko zgoraj, če so pike pravilno poravnane s črtami.", false);
+                    else showResult("Napaka: Kode ni bilo mogoče prebrati. Preveri 'Debug' sliko zgoraj.", false);
                 };
                 img.src = e.target.result;
             };
@@ -460,7 +615,6 @@
         }
 
         let videoStream = null;
-        let scanInterval = null;
 
         async function startCamera() {
             const video = document.getElementById('webcam');
@@ -472,32 +626,36 @@
                 video.srcObject = videoStream;
                 wrapper.style.display = "block";
                 stopBtn.style.display = "block";
-                showResult("Skeniram... Sliko na kameri POPOLNOMA poravnaj z zeleno tarčo!", false);
-
-                scanInterval = setInterval(() => {
-                    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                        const tempCanvas = document.createElement('canvas');
-                        // Vzamemo kvadratni izrez iz sredine videa
-                        const size = Math.min(video.videoWidth, video.videoHeight);
-                        const startX = (video.videoWidth - size) / 2;
-                        const startY = (video.videoHeight - size) / 2;
-                        
-                        tempCanvas.width = CANVAS_SIZE;
-                        tempCanvas.height = CANVAS_SIZE;
-                        const ctx = tempCanvas.getContext('2d');
-                        ctx.fillStyle = '#ffffff';
-                        ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
-                        ctx.drawImage(video, startX, startY, size, size, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-
-                        const result = decodeImage(tempCanvas);
-                        if (result) {
-                            showResult("Prebrano: " + result, true);
-                            stopCamera(); // Uspešno prebrano
-                        }
-                    }
-                }, 400); // 400ms interval
+                showResult("Kamera je aktivna. Usmeri kamero v kodu in klikni 'Skeniraj trenutno sliko'.", false);
             } catch (err) {
                 showResult("Kamera ni na voljo.", false);
+            }
+        }
+
+        function captureAndScan() {
+            const video = document.getElementById('webcam');
+            if (!video || !videoStream || video.readyState !== video.HAVE_ENOUGH_DATA) {
+                showResult("Posnetek iz kamere ni pripravljen.", false);
+                return;
+            }
+
+            const tempCanvas = document.createElement('canvas');
+            const size = Math.min(video.videoWidth, video.videoHeight);
+            const startX = (video.videoWidth - size) / 2;
+            const startY = (video.videoHeight - size) / 2;
+
+            tempCanvas.width = CANVAS_SIZE;
+            tempCanvas.height = CANVAS_SIZE;
+            const ctx = tempCanvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            ctx.drawImage(video, startX, startY, size, size, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            const result = decodeImage(tempCanvas);
+            if (result) {
+                showResult("Prebrano: " + result, true);
+            } else {
+                showResult("Napaka: Kode na posnetku ni bilo mogoče prebrati. Preveri 'Debug' sliko zgoraj.", false);
             }
         }
 
@@ -506,7 +664,6 @@
                 videoStream.getTracks().forEach(track => track.stop());
                 videoStream = null;
             }
-            if (scanInterval) clearInterval(scanInterval);
             document.getElementById('cameraWrapper').style.display = "none";
             document.getElementById('stopCamBtn').style.display = "none";
         }
