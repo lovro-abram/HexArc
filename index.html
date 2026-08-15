@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HexArc Code</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --text: #0f172a;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { margin: 0 0 10px 0; font-size: 2.2rem; color: #0f172a; }
+        .header p { margin: 0; color: #64748b; font-size: 1.1rem; }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            max-width: 1100px;
+            width: 100%;
+        }
+
+        @media (max-width: 850px) { .container { grid-template-columns: 1fr; } }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .card h2 { margin-top: 0; width: 100%; font-size: 1.3rem; border-bottom: 2px solid var(--bg-color); padding-bottom: 12px; }
+        
+        .input-group { width: 100%; margin-bottom: 20px; }
+        label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; color: #334155; }
+        input[type="text"], input[type="file"] {
+            width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus { outline: none; border-color: var(--primary); }
+
+        button {
+            background-color: var(--primary); color: white; border: none; padding: 12px 20px;
+            border-radius: 8px; font-size: 1rem; cursor: pointer; font-weight: 600; transition: all 0.2s; width: 100%;
+        }
+        button:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+        .btn-secondary { background-color: #64748b; margin-top: 15px; }
+        .btn-secondary:hover { background-color: #475569; }
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: #dc2626; }
+
+        .canvas-container {
+            background: white; border-radius: 12px; padding: 10px; margin-top: 20px; 
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); border: 1px solid var(--border);
+            position: relative;
+        }
+        
+        canvas { display: block; border-radius: 8px; }
+
+        .result-box {
+            margin-top: 10px; width: 100%; padding: 16px; background-color: #f8fafc;
+            border: 2px dashed var(--border); border-radius: 8px; box-sizing: border-box;
+            min-height: 80px; word-break: break-all; font-size: 1.1rem; text-align: center;
+            display: flex; align-items: center; justify-content: center; font-weight: 500;
+        }
+
+        .camera-wrapper {
+            position: relative; width: 100%; max-width: 400px; margin-top: 15px; display: none;
+            border-radius: 12px; overflow: hidden; border: 2px solid var(--primary); background: #000;
+        }
+        video { width: 100%; display: block; }
+        
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; align-items: center; justify-content: center;
+        }
+        .overlay svg { width: 85%; height: 85%; opacity: 0.7; }
+        
+        .status-msg { margin-top: 10px; font-size: 0.9rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>HexArc Code</h1>
+        <p>S pametnimi osmi in vizualnim debagiranjem branja</p>
+    </div>
+
+    <div class="container">
+        <!-- GENERATOR -->
+        <div class="card">
+            <h2>1. Ustvari Kodo</h2>
+            <div class="input-group">
+                <label for="textInput">Vnesite besedilo (do 200 znakov):</label>
+                <input type="text" id="textInput" value="Testna HexArc Koda 123!" placeholder="Vnesite besedilo ali URL...">
+            </div>
+            <button onclick="generateHexArc()">Generiraj kodo</button>
+            <div id="genMsg" class="status-msg"></div>
+            
+            <div class="canvas-container">
+                <canvas id="hexCanvas" width="400" height="400"></canvas>
+            </div>
+            
+            <button class="btn-secondary" onclick="downloadCode()">Prenesi PNG sliko</button>
+        </div>
+
+        <!-- BRALNIK -->
+        <div class="card">
+            <h2>2. Preberi Kodo</h2>
+            <div style="display: flex; gap: 10px; width: 100%;">
+                <button onclick="startCamera()">Skeniraj s kamero</button>
+                <button class="btn-danger" id="stopCamBtn" onclick="stopCamera()" style="display:none;">Ustavi kamero</button>
+            </div>
+
+            <div class="camera-wrapper" id="cameraWrapper">
+                <video id="webcam" autoplay playsinline></video>
+                <div class="overlay">
+                    <!-- Tarča za kamero -->
+                    <svg viewBox="0 0 100 100">
+                        <polygon points="50,15 80,32.5 80,67.5 50,85 20,67.5 20,32.5" fill="none" stroke="#22c55e" stroke-width="2" stroke-dasharray="4"></polygon>
+                        <line x1="50" y1="15" x2="50" y2="0" stroke="#22c55e" stroke-width="2"></line>
+                        <polygon points="50,0 45,8 55,8" fill="#22c55e"></polygon>
+                    </svg>
+                </div>
+            </div>
+            
+            <div class="input-group" style="margin-top: 20px;">
+                <label for="fileInput">Ali izberi sliko iz naprave:</label>
+                <input type="file" id="fileInput" accept="image/*" onchange="decodeFromFile(event)">
+            </div>
+            
+            <div class="canvas-container" id="debugCanvasContainer" style="display:none;">
+                <label style="text-align:center; display:block; color:#64748b; font-size:0.8rem;">Vizualni pregled branja (Zeleno=1, Rdeče=0)</label>
+                <canvas id="debugCanvas" width="400" height="400"></canvas>
+            </div>
+
+            <div class="input-group">
+                <div id="decodedOutput" class="result-box" style="color: #64748b;">Čakam na sliko ali kamero...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- GEOMETRIJA ---
+        const CANVAS_SIZE = 400;
+        const CENTER = CANVAS_SIZE / 2;
+        const HEX_RADIUS = 35;
+        const RING_START = 60;
+        const RING_GAP = 14;
+        const LINE_THICKNESS = 8;
+        const MAX_RADIUS = 180;
+        
+        // Varnostni pas ob oseh, kjer ni podatkov
+        const KEEPOUT_MARGIN_PX = 14; 
+        const AXIS_ANGLES = [-Math.PI / 2, Math.PI / 6, (5 * Math.PI) / 6];
+
+        function calculateChecksum(dataBytes) {
+            let chk = 0;
+            for (let i = 0; i < dataBytes.length; i++) chk = (chk + dataBytes[i]) % 256;
+            return chk ^ 0xAA;
+        }
+
+        function showMessage(elementId, text, isError = false) {
+            const el = document.getElementById(elementId);
+            el.innerText = text;
+            el.style.color = isError ? "var(--danger)" : "var(--success)";
+        }
+
+        function generateHexArc() {
+            let text = document.getElementById('textInput').value;
+            const canvas = document.getElementById('hexCanvas');
+            const ctx = canvas.getContext('2d');
+            document.getElementById('genMsg').innerText = "";
+
+            // Očistimo s fiksno belo (ključno za bralnik!)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            const encoder = new TextEncoder();
+            let textBytes = Array.from(encoder.encode(text));
+            
+            // Omejitev na max 200 bajtov, da preprečimo overflow
+            if (textBytes.length > 200) {
+                textBytes = textBytes.slice(0, 200);
+                showMessage('genMsg', "Opozorilo: Besedilo je bilo skrajšano na 200 znakov.", true);
+            }
+
+            const checksum = calculateChecksum(textBytes);
+            const allBytes = [textBytes.length, ...textBytes, checksum];
+
+            let bitArray = [];
+            allBytes.forEach(byte => {
+                for (let i = 7; i >= 0; i--) bitArray.push((byte >> i) & 1);
+            });
+
+            // 1. PRED-IZRAČUN (Dry Run) - Da ugotovimo, kako dolge morajo biti osi!
+            let simBitIndex = 0;
+            let finalRadius = RING_START;
+            
+            let tempRadius = RING_START;
+            while (simBitIndex < bitArray.length && tempRadius <= MAX_RADIUS) {
+                finalRadius = tempRadius; // Zabeležimo zadnji uporabljen radij
+                const keepoutAngle = KEEPOUT_MARGIN_PX / tempRadius;
+                const usableSectorAngle = ((2 * Math.PI) / 3) - (2 * keepoutAngle);
+                const bitsPerSector = Math.floor((usableSectorAngle * tempRadius) / (LINE_THICKNESS + 2));
+                
+                if (bitsPerSector > 0) {
+                    simBitIndex += (bitsPerSector * 3); // 3 sektorji
+                }
+                tempRadius += RING_GAP;
+            }
+            
+            if (simBitIndex < bitArray.length) {
+                showMessage('genMsg', "Koda je polna! Del besedila bo morda odrezan.", true);
+            }
+
+            // 2. ISKALNI VZOREC IN DINAMIČNE OSI
+            ctx.fillStyle = '#000000';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 4;
+            ctx.lineCap = "round";
+
+            // Sredinski šestkotnik
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i - Math.PI / 2;
+                const x = CENTER + HEX_RADIUS * Math.cos(angle);
+                const y = CENTER + HEX_RADIUS * Math.sin(angle);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+
+            // 3 Podaljšane Osi prilagojene na finalRadius
+            const AXIS_END_RADIUS = finalRadius + 12; // Malo čez zadnji obroč
+            
+            AXIS_ANGLES.forEach((angle, index) => {
+                const startX = CENTER + HEX_RADIUS * Math.cos(angle);
+                const startY = CENTER + HEX_RADIUS * Math.sin(angle);
+                const endX = CENTER + AXIS_END_RADIUS * Math.cos(angle);
+                const endY = CENTER + AXIS_END_RADIUS * Math.sin(angle);
+
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+
+                // Trikotnik na vrhu prve osi (-90°), obrnjen NAVZVEN
+                if (index === 0) {
+                    const triSize = 12;
+                    ctx.beginPath();
+                    // Vrh trikotnika kaže stran od centra
+                    ctx.moveTo(endX + triSize * Math.cos(angle), endY + triSize * Math.sin(angle));
+                    ctx.lineTo(endX + triSize * Math.cos(angle + 2.0), endY + triSize * Math.sin(angle + 2.0));
+                    ctx.lineTo(endX + triSize * Math.cos(angle - 2.0), endY + triSize * Math.sin(angle - 2.0));
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            });
+
+            // 3. PODATKOVNI OBROČI
+            let bitIndex = 0;
+            let currentRadius = RING_START;
+            ctx.lineWidth = LINE_THICKNESS;
+            ctx.lineCap = "butt";
+
+            while (bitIndex < bitArray.length && currentRadius <= MAX_RADIUS) {
+                const keepoutAngle = KEEPOUT_MARGIN_PX / currentRadius;
+                const usableSectorAngle = ((2 * Math.PI) / 3) - (2 * keepoutAngle);
+                const bitsPerSector = Math.floor((usableSectorAngle * currentRadius) / (LINE_THICKNESS + 2));
+                const anglePerBit = usableSectorAngle / bitsPerSector;
+
+                if (bitsPerSector > 0) {
+                    for (let s = 0; s < 3; s++) {
+                        const startSectorAngle = AXIS_ANGLES[s] + keepoutAngle;
+                        
+                        for (let b = 0; b < bitsPerSector; b++) {
+                            if (bitIndex >= bitArray.length) break;
+
+                            if (bitArray[bitIndex] === 1) {
+                                const bitStart = startSectorAngle + (b * anglePerBit);
+                                const bitEnd = bitStart + anglePerBit;
+                                
+                                ctx.beginPath();
+                                // Dodamo +0.02 radiana prekrivanja, da preprečimo mikroskopske vrzeli med enicami
+                                ctx.arc(CENTER, CENTER, currentRadius, bitStart, bitEnd + 0.02);
+                                ctx.stroke();
+                            }
+                            bitIndex++;
+                        }
+                    }
+                }
+                currentRadius += RING_GAP;
+            }
+        }
+
+        function downloadCode() {
+            const canvas = document.getElementById('hexCanvas');
+            const link = document.createElement('a');
+            link.download = 'HexArc_Code.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function decodeImage(sourceCanvas) {
+            // Naredimo "Debug" platno, da vizualno pokažemo uporabniku, kje bralnik bere
+            const debugContainer = document.getElementById('debugCanvasContainer');
+            const debugCanvas = document.getElementById('debugCanvas');
+            debugContainer.style.display = "block";
+            const dCtx = debugCanvas.getContext('2d');
+            
+            // Prekopiramo original na debug platno
+            dCtx.drawImage(sourceCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            
+            const ctx = sourceCanvas.getContext('2d', { willReadFrequently: true });
+            const imgData = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            const data = imgData.data;
+
+            const cx = CANVAS_SIZE / 2;
+            const cy = CANVAS_SIZE / 2;
+
+            let readBits = [];
+            let currentRadius = RING_START;
+
+            while (currentRadius <= MAX_RADIUS) {
+                const keepoutAngle = KEEPOUT_MARGIN_PX / currentRadius;
+                const usableSectorAngle = ((2 * Math.PI) / 3) - (2 * keepoutAngle);
+                const bitsPerSector = Math.floor((usableSectorAngle * currentRadius) / (LINE_THICKNESS + 2));
+                const anglePerBit = usableSectorAngle / bitsPerSector;
+
+                if (bitsPerSector > 0) {
+                    for (let s = 0; s < 3; s++) {
+                        const startSectorAngle = AXIS_ANGLES[s] + keepoutAngle;
+                        
+                        for (let b = 0; b < bitsPerSector; b++) {
+                            const angle = startSectorAngle + (b * anglePerBit) + (anglePerBit / 2);
+                            const sampleX = Math.round(cx + currentRadius * Math.cos(angle));
+                            const sampleY = Math.round(cy + currentRadius * Math.sin(angle));
+
+                            // ZANESLJIVO BRANJE: Ne gledamo samo 1 piksla, ampak 3x3 mrežo.
+                            // Iščemo "najtemnejši" piksel v bližini, da izničimo vpliv mehkih robov (anti-aliasing).
+                            let minBrightness = 255; 
+                            
+                            for (let dy = -1; dy <= 1; dy++) {
+                                for (let dx = -1; dx <= 1; dx++) {
+                                    const px = sampleX + dx;
+                                    const py = sampleY + dy;
+                                    if (px >= 0 && px < CANVAS_SIZE && py >= 0 && py < CANVAS_SIZE) {
+                                        const idx = (py * CANVAS_SIZE + px) * 4;
+                                        const brightness = (data[idx] + data[idx+1] + data[idx+2]) / 3;
+                                        if (brightness < minBrightness) minBrightness = brightness;
+                                    }
+                                }
+                            }
+                            
+                            // Če je najtemnejši piksel v okolici temnejši od 140 (srednje siva), je to črna črta (1)
+                            const isBitOne = minBrightness < 140;
+                            readBits.push(isBitOne ? 1 : 0);
+                            
+                            // Nariši debug piko (Zelena = 1, Rdeča = 0)
+                            dCtx.fillStyle = isBitOne ? '#22c55e' : '#ef4444';
+                            dCtx.fillRect(sampleX - 1.5, sampleY - 1.5, 3, 3);
+                        }
+                    }
+                }
+                currentRadius += RING_GAP;
+            }
+
+            // Dekodiranje bitov v bajte
+            let bytes = [];
+            for (let i = 0; i < readBits.length; i += 8) {
+                if (i + 8 > readBits.length) break; // Ne upoštevamo nepopolnih bajtov na koncu
+                let byteVal = 0;
+                for (let b = 0; b < 8; b++) byteVal = (byteVal << 1) | readBits[i + b];
+                bytes.push(byteVal);
+            }
+
+            if (bytes.length < 2) return null;
+
+            const length = bytes[0];
+            // Zaščita: Če je dolžina napačna/koruptirana, prekini
+            if (length === 0 || length > 200 || bytes.length < length + 2) return null;
+
+            const textBytes = bytes.slice(1, length + 1);
+            const readChecksum = bytes[length + 1];
+
+            if (calculateChecksum(textBytes) === readChecksum) {
+                try {
+                    const decoder = new TextDecoder();
+                    return decoder.decode(new Uint8Array(textBytes));
+                } catch(e) { return null; }
+            }
+
+            return null; // Checksum ni uspel
+        }
+
+        function showResult(text, success) {
+            const outputBox = document.getElementById('decodedOutput');
+            if (success) {
+                outputBox.innerText = text;
+                outputBox.style.color = "#15803d";
+                outputBox.style.borderColor = "#22c55e";
+                outputBox.style.backgroundColor = "#f0fdf4";
+            } else {
+                outputBox.innerText = text;
+                outputBox.style.color = "#b91c1c";
+                outputBox.style.borderColor = "#ef4444";
+                outputBox.style.backgroundColor = "#fef2f2";
+            }
+        }
+
+        function decodeFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = CANVAS_SIZE;
+                    tempCanvas.height = CANVAS_SIZE;
+                    const ctx = tempCanvas.getContext('2d');
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                    ctx.drawImage(img, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+                    const result = decodeImage(tempCanvas);
+                    if (result) showResult("Prebrano: " + result, true);
+                    else showResult("Napaka: Kode ni bilo mogoče prebrati. Preveri 'Debug' sliko zgoraj, če so pike pravilno poravnane s črtami.", false);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        let videoStream = null;
+        let scanInterval = null;
+
+        async function startCamera() {
+            const video = document.getElementById('webcam');
+            const wrapper = document.getElementById('cameraWrapper');
+            const stopBtn = document.getElementById('stopCamBtn');
+            
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = videoStream;
+                wrapper.style.display = "block";
+                stopBtn.style.display = "block";
+                showResult("Skeniram... Sliko na kameri POPOLNOMA poravnaj z zeleno tarčo!", false);
+
+                scanInterval = setInterval(() => {
+                    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                        const tempCanvas = document.createElement('canvas');
+                        // Vzamemo kvadratni izrez iz sredine videa
+                        const size = Math.min(video.videoWidth, video.videoHeight);
+                        const startX = (video.videoWidth - size) / 2;
+                        const startY = (video.videoHeight - size) / 2;
+                        
+                        tempCanvas.width = CANVAS_SIZE;
+                        tempCanvas.height = CANVAS_SIZE;
+                        const ctx = tempCanvas.getContext('2d');
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+                        ctx.drawImage(video, startX, startY, size, size, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+                        const result = decodeImage(tempCanvas);
+                        if (result) {
+                            showResult("Prebrano: " + result, true);
+                            stopCamera(); // Uspešno prebrano
+                        }
+                    }
+                }, 400); // 400ms interval
+            } catch (err) {
+                showResult("Kamera ni na voljo.", false);
+            }
+        }
+
+        function stopCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+            if (scanInterval) clearInterval(scanInterval);
+            document.getElementById('cameraWrapper').style.display = "none";
+            document.getElementById('stopCamBtn').style.display = "none";
+        }
+
+        window.onload = generateHexArc;
+    </script>
+</body>
+</html>
