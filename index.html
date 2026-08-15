@@ -261,6 +261,357 @@
             link.click();
         }
 
+        // --- ROBUSNI BRALNIK Z ZDRUŽEVANJEM ELEMENTOV (DILATION/CLOSING) TER DINAMIČNO ORIENTACIJO ---
+
+        function processAndWarpCanvas(sourceCanvas) {
+            if (!cvReady || typeof cv === 'undefined') {
+                return sourceCanvas;
+            }
+
+            try {
+                // Prilagodi velikost platna na največ 800px za hitrejšo obdelavo in preprečitev zmrzovanja brskalnika
+                const MAX_DIM = 800;
+                let processCanvas = sourceCanvas;
+
+                if (sourceCanvas.width > MAX_DIM || sourceCanvas.height > MAX_DIM) {
+                    const scale = Math.min(MAX_DIM / sourceCanvas.width, MAX_DIM / sourceCanvas.height);
+                    const scaledCanvas = document.createElement('canvas');
+                    scaledCanvas.width = Math.round(sourceCanvas.width * scale);
+                    scaledCanvas.height = Math.round(sourceCanvas.height * scale);
+                    const sCtx = scaledCanvas.getContext('2d');
+                    sCtx.drawImage(sourceCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
+                    processCanvas = scaledCanvas;
+                }
+
+                let src = cv.imread(processCanvas);
+                let gray = new cv.Mat();
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+                let binary = new cv.Mat();
+                cv.threshold(gray, binary, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU);
+
+                // Morfološko raztezanje (Dilation) za povezavo vseh ločenih lokov in oseh v enoten blobl
+                let dilated = new cv.Mat();
+                let kernelSize = Math.max(15, Math.floor(Math.min(processCanvas.width, processCanvas.height) / 20));
+                let M_kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(kernelSize, kernelSize));
+                cv.dilate(binary, dilated, M_kernel);
+
+                let contours = new cv.MatVector();
+                let hierarchy = new cv.Mat();
+                cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+                let bestContour = null;
+                let maxArea = 0;
+                let minAreaThreshold = (processCanvas.width * processCanvas.height) * 0.01;
+
+                for (let i = 0; i < contours.size(); ++i) {
+                    let cnt = contours.get(i);
+                    let area = cv.contourArea(cnt);
+                    if (area > maxArea && area >= minAreaThreshold) {
+                        maxArea = area;
+                        bestContour = cnt;
+                    }
+                }
+
+                if (!bestContour) {
+                    gray.delete(); binary.delete(); dilated.delete(); M_kernel.delete(); contours.delete(); hierarchy.delete(); src.delete();
+                    return sourceCanvas;
+                }
+
+                // Poiščemo pravokotnik z najmanjšo površino okoli združenega simbola (minAreaRect)
+                let rect = cv.minAreaRect(bestContour);
+                let vertices = cv.RotatedRect.points(rect);
+
+                let pts = [];
+                for (let i = 0; i < 4; i++) {
+                    pts.push({ x: vertices[i].x, y: vertices[i].y });
+                }
+
+                // Pravilno razvrščanje 4 oglišč (Zgoraj-Levo, Zgoraj-Desno, Spodaj-Desno, Spodaj-Levo)
+                let sortedY = pts.slice().sort((a, b) => a.y - b.y);
+                let topTwo = sortedY.slice(0, 2).sort((a, b) => a.x - b.x);
+                let bottomTwo = sortedY.slice(2, 4).sort((a, b) => a.x - b.x);
+
+                let topLeft = topTwo[0];
+                let topRight = topTwo[1];
+                let bottomLeft = bottomTwo[0];
+                let bottomRight = bottomTwo[1];
+
+                let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+                    topLeft.x, topLeft.y,
+                    topRight.x, topRight.y,
+                    bottomRight.x, bottomRight.y,
+                    bottomLeft.x, bottomLeft.y
+                ]);
+
+                const margin = 15;
+                let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+                    margin, margin,
+                    CANVAS_SIZE - margin, margin,
+                    CANVAS_SIZE - margin, CANVAS_SIZE - margin,
+                    margin, CANVAS_SIZE - margin
+                ]);
+
+                let M_warp = cv.getPerspectiveTransform(srcTri, dstTri);
+                let dst = new cv.Mat();
+                let dsize = new cv.Size(CANVAS_SIZE, CANVAS_SIZE);
+                cv.warpPerspective(src, dst, M_warp, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar(255, 255, 255, 255));
+
+                let warpedCanvas = document.createElement('canvas');
+                warpedCanvas.width = CANVAS_SIZE;
+                warpedCanvas.height = CANVAS_SIZE;
+                cv.imshow(warpedCanvas, dst);
+
+                src.delete(); gray.delete(); binary.delete(); dilated.delete(); M_kernel.delete(); contours.delete(); hierarchy.delete();
+                srcTri.delete(); dstTri.delete(); M_warp.delete(); dst.delete();
+
+                return warpedCanvas;
+            } catch (e) {
+                console.error("Napaka pri OpenCV obdelavi:", e);
+                return sourceCanvas;
+            }
+        }
+
+        // Iskanje dejanskega zunanjega radija osi na poravnani sliki za natančno lokacijo trikotnika
+        function findOuterAxisRadius(canvas) {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const imgData = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            const data = imgData.data;
+
+            let maxR = RING_START;
+            for (let r = MAX_RADIUS + 25; r >= RING_START; r -= 2) {
+                let darkFound = false;
+                for (let step = 0; step < 72; step++) {
+                    const angle = (step * Math.PI) / 36;
+                    const px = Math.round(CENTER + r * Math.cos(angle));
+                    const py = Math.round(CENTER + r * Math.sin(angle));
+                    if (px >= 0 && px < CANVAS_SIZE && py >= 0 && py < CANVAS_SIZE) {
+                        const idx = (py * CANVAS_SIZE + px) * 4;
+                        if ((data[idx] + data[idx+1] + data[idx+2]) / 3 < 140) {
+                            darkFound = true;
+                            break;
+                        }
+                    }
+                }
+                if (darkFound) {
+                    maxR = r;
+                    break;
+                }
+            }
+            return maxR;
+        }
+
+        // Vzorčenje bitov za poljuben kot rotacije
+        function tryDecodeWithRotationAngle(sourceCanvas, rotationAngle) {
+            const ctx = sourceCanvas.getContext('2d', { willReadFrequently: true });
+            const imgData = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            const data = imgData.data;
+
+            let readBits = [];
+            let samplePoints = [];
+            let currentRadius = RING_START;
+
+            while (currentRadius <= MAX_RADIUS) {
+                const keepoutAngle = KEEPOUT_MARGIN_PX / currentRadius;
+                const usableSectorAngle = ((2 * Math.PI) / 3) - (2 * keepoutAngle);
+                const bitsPerSector = Math.floor((usableSectorAngle * currentRadius) / (LINE_THICKNESS + 2));
+                const anglePerBit = usableSectorAngle / bitsPerSector;
+
+                if (bitsPerSector > 0) {
+                    for (let s = 0; s < 3; s++) {
+                        const startSectorAngle = AXIS_ANGLES[s] + rotationAngle + keepoutAngle;
+                        
+                        for (let b = 0; b < bitsPerSector; b++) {
+                            const angle = startSectorAngle + (b * anglePerBit) + (anglePerBit / 2);
+                            const sampleX = Math.round(CENTER + currentRadius * Math.cos(angle));
+                            const sampleY = Math.round(CENTER + currentRadius * Math.sin(angle));
+
+                            let minBrightness = 255; 
+                            for (let dy = -1; dy <= 1; dy++) {
+                                for (let dx = -1; dx <= 1; dx++) {
+                                    const px = sampleX + dx;
+                                    const py = sampleY + dy;
+                                    if (px >= 0 && px < CANVAS_SIZE && py >= 0 && py < CANVAS_SIZE) {
+                                        const idx = (py * CANVAS_SIZE + px) * 4;
+                                        const brightness = (data[idx] + data[idx+1] + data[idx+2]) / 3;
+                                        if (brightness < minBrightness) minBrightness = brightness;
+                                    }
+                                }
+                            }
+                            
+                            const isBitOne = minBrightness < 140;
+                            readBits.push(isBitOne ? 1 : 0);
+                            samplePoints.push({ x: sampleX, y: sampleY, isOne: isBitOne });
+                        }
+                    }
+                }
+                currentRadius += RING_GAP;
+            }
+
+            let bytes = [];
+            for (let i = 0; i < readBits.length; i += 8) {
+                if (i + 8 > readBits.length) break;
+                let byteVal = 0;
+                for (let b = 0; b < 8; b++) byteVal = (byteVal << 1) | readBits[i + b];
+                bytes.push(byteVal);
+            }
+
+            if (bytes.length < 2) return { text: null, samplePoints };
+
+            const length = bytes[0];
+            if (length === 0 || length > 200 || bytes.length < length + 2) return { text: null, samplePoints };
+
+            const textBytes = bytes.slice(1, length + 1);
+            const readChecksum = bytes[length + 1];
+
+            if (calculateChecksum(textBytes) === readChecksum) {
+                try {
+                    const decoder = new TextDecoder();
+                    return { text: decoder.decode(new Uint8Array(textBytes)), samplePoints };
+                } catch(e) { return { text: null, samplePoints }; }
+            }
+
+            return { text: null, samplePoints };
+        }
+
+        function decodeImage(sourceCanvas) {
+            const debugContainer = document.getElementById('debugCanvasContainer');
+            const debugCanvas = document.getElementById('debugCanvas');
+            debugContainer.style.display = "block";
+            const dCtx = debugCanvas.getContext('2d');
+
+            // 1. Zaznava in perspektivna poravnava z OpenCV združevanjem
+            const warpedCanvas = processAndWarpCanvas(sourceCanvas);
+
+            // Narišemo poravnano sliko na debug canvas
+            dCtx.drawImage(warpedCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            // 2. Dinamično iskanje zunanjega radija osi in rotacijskega kota
+            const detectedOuterRadius = findOuterAxisRadius(warpedCanvas);
+
+            let bestResult = null;
+            let bestPoints = [];
+
+            // Preiščemo rotacije s korakom 5 stopinj (ter 120° sektorje), da zagotovimo delovanje za poljubno rotacijo
+            for (let deg = 0; deg < 120; deg += 5) {
+                const baseRad = (deg * Math.PI) / 180;
+                for (let s = 0; s < 3; s++) {
+                    const rotAngle = baseRad + (s * ((2 * Math.PI) / 3));
+                    const res = tryDecodeWithRotationAngle(warpedCanvas, rotAngle);
+                    if (res.samplePoints.length > 0 && bestPoints.length === 0) bestPoints = res.samplePoints;
+                    if (res.text) {
+                        bestResult = res.text;
+                        bestPoints = res.samplePoints;
+                        break;
+                    }
+                }
+                if (bestResult) break;
+            }
+
+            // Narišemo vzorčevalne točke bitov (zeleno = 1, rdeče = 0)
+            bestPoints.forEach(pt => {
+                dCtx.fillStyle = pt.isOne ? '#22c55e' : '#ef4444';
+                dCtx.fillRect(pt.x - 1.5, pt.y - 1.5, 3, 3);
+            });
+
+            return bestResult;
+        }
+
+        function showResult(text, success) {
+            const outputBox = document.getElementById('decodedOutput');
+            if (success) {
+                outputBox.innerText = text;
+                outputBox.style.color = "#15803d";
+                outputBox.style.borderColor = "#22c55e";
+                outputBox.style.backgroundColor = "#f0fdf4";
+            } else {
+                outputBox.innerText = text;
+                outputBox.style.color = "#b91c1c";
+                outputBox.style.borderColor = "#ef4444";
+                outputBox.style.backgroundColor = "#fef2f2";
+            }
+        }
+
+        function decodeFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = img.width || CANVAS_SIZE;
+                    tempCanvas.height = img.height || CANVAS_SIZE;
+                    const ctx = tempCanvas.getContext('2d');
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                    ctx.drawImage(img, 0, 0);
+
+                    const result = decodeImage(tempCanvas);
+                    if (result) showResult("Prebrano: " + result, true);
+                    else showResult("Napaka: Kode ni bilo mogoče prebrati. Preveri 'Debug' sliko zgoraj.", false);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        let videoStream = null;
+
+        async function startCamera() {
+            const video = document.getElementById('webcam');
+            const wrapper = document.getElementById('cameraWrapper');
+            const stopBtn = document.getElementById('stopCamBtn');
+            
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = videoStream;
+                wrapper.style.display = "block";
+                stopBtn.style.display = "block";
+                showResult("Kamera je aktivna. Usmeri kamero v kodu in klikni 'Skeniraj trenutno sliko'.", false);
+            } catch (err) {
+                showResult("Kamera ni na voljo.", false);
+            }
+        }
+
+        function captureAndScan() {
+            const video = document.getElementById('webcam');
+            if (!video || !videoStream || video.readyState !== video.HAVE_ENOUGH_DATA) {
+                showResult("Posnetek iz kamere ni pripravljen.", false);
+                return;
+            }
+
+            const tempCanvas = document.createElement('canvas');
+            const size = Math.min(video.videoWidth, video.videoHeight);
+            const startX = (video.videoWidth - size) / 2;
+            const startY = (video.videoHeight - size) / 2;
+
+            tempCanvas.width = CANVAS_SIZE;
+            tempCanvas.height = CANVAS_SIZE;
+            const ctx = tempCanvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            ctx.drawImage(video, startX, startY, size, size, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            const result = decodeImage(tempCanvas);
+            if (result) {
+                showResult("Prebrano: " + result, true);
+            } else {
+                showResult("Napaka: Kode na posnetku ni bilo mogoče prebrati. Preveri 'Debug' sliko zgoraj.", false);
+            }
+        }
+
+        function stopCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+            document.getElementById('cameraWrapper').style.display = "none";
+            document.getElementById('stopCamBtn').style.display = "none";
+        }
+
         window.onload = generateHexArc;
     </script>
 </body>
