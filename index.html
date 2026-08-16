@@ -3,184 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HexArc Code</title>
+    <title>HexArc Code v3 Generator & Scanner Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root {
-            --bg-color: #f8fafc;
-            --card-bg: #ffffff;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --text: #0f172a;
-            --border: #e2e8f0;
-            --success: #10b981;
-            --danger: #ef4444;
-        }
-
-        body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .header { text-align: center; margin-bottom: 30px; }
-        .header h1 { margin: 0 0 10px 0; font-size: 2.2rem; color: #0f172a; }
-        .header p { margin: 0; color: #64748b; font-size: 1.1rem; }
-
-        .container {
-            display: flex;
-            justify-content: center;
-            max-width: 550px;
-            width: 100%;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-        }
-
-        .card h2 { margin-top: 0; width: 100%; font-size: 1.3rem; border-bottom: 2px solid var(--bg-color); padding-bottom: 12px; }
-        
-        .input-group { width: 100%; margin-bottom: 20px; }
-        label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; color: #334155; }
-        input[type="text"] {
-            width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 1rem;
-            transition: border-color 0.2s;
-        }
-        input[type="text"]:focus { outline: none; border-color: var(--primary); }
-
-        button {
-            background-color: var(--primary); color: white; border: none; padding: 12px 20px;
-            border-radius: 8px; font-size: 1rem; cursor: pointer; font-weight: 600; transition: all 0.2s; width: 100%;
-        }
-        button:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
-        .btn-secondary { background-color: #64748b; margin-top: 15px; }
-        .btn-secondary:hover { background-color: #475569; }
-
-        .canvas-container {
-            background: white; border-radius: 12px; padding: 10px; margin-top: 20px; 
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); border: 1px solid var(--border);
-            position: relative; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center;
-        }
-        
-        canvas { display: block; border-radius: 8px; max-width: 100%; height: auto; }
-        .status-msg { margin-top: 10px; font-size: 0.9rem; font-weight: bold; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 flex flex-col items-center">
 
-    <div class="header">
-        <h1>HexArc Code</h1>
-        <p>Ustvarjanje vizualnih kodo HexArc</p>
-    </div>
+    <header class="text-center max-w-2xl mb-6">
+        <h1 class="text-3xl md:text-4xl font-bold text-blue-400 mb-2">HexArc Code v3</h1>
+        <p class="text-slate-400 text-sm md:text-base">
+            Optimizirana vizualna koda z asimetričnimi markerji (1 puščica + 2 kroga) za bliskovito prepoznavanje s kamero.
+        </p>
+    </header>
 
-    <div class="container">
-        <!-- GENERATOR -->
-        <div class="card">
-            <h2>Ustvari Kodo</h2>
-            <div class="input-group">
-                <label for="textInput">Vnesite besedilo (do 200 znakov):</label>
-                <input type="text" id="textInput" value="Testna HexArc Koda 123!" placeholder="Vnesite besedilo ali URL...">
+    <main class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Controls Panel -->
+        <section class="lg:col-span-5 bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+            <div>
+                <h2 class="text-xl font-semibold mb-4 text-white border-b border-slate-700 pb-2">Nastavitve Kode</h2>
+                
+                <div class="mb-4">
+                    <label for="textInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                        Vsebina (Besedilo ali URL)
+                    </label>
+                    <input type="text" id="textInput" value="https://hexarc.io/code/9876" 
+                           class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+
+                <div class="mb-4">
+                    <button onclick="generateHexArc()" 
+                            class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:shadow-blue-500/20 transition duration-200">
+                        Generiraj Kodo
+                    </button>
+                </div>
+
+                <div id="genMsg" class="text-sm font-medium mb-3"></div>
+                <div id="infoBadge" class="bg-slate-900/80 text-xs text-slate-400 p-3 rounded-lg border border-slate-700/50 mb-6 font-mono"></div>
+
+                <!-- Feature Toggle -->
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700/80 mb-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="block text-sm font-semibold text-slate-200">CV Bralni Overlay</span>
+                            <span class="text-xs text-slate-400">Prikaži kako algoritem zazna točke</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="cvOverlayToggle" onchange="generateHexArc()" class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                    </div>
+                </div>
             </div>
-            <button onclick="generateHexArc()">Generiraj kodo</button>
-            <div id="genMsg" class="status-msg"></div>
-            
-            <div class="canvas-container">
-                <canvas id="hexCanvas" width="400" height="400"></canvas>
+
+            <div>
+                <button onclick="downloadCode()" 
+                        class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold py-3 px-4 rounded-xl border border-slate-600 transition">
+                    Prenesi PNG Sliko
+                </button>
+            </div>
+        </section>
+
+        <!-- Canvas Visualizer Panel -->
+        <section class="lg:col-span-7 bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col items-center justify-center relative min-h-[480px]">
+            <div class="bg-white p-4 rounded-2xl shadow-inner max-w-full flex items-center justify-center">
+                <canvas id="hexCanvas" width="560" height="560" class="max-w-full h-auto rounded-lg"></canvas>
             </div>
             
-            <button class="btn-secondary" onclick="downloadCode()">Prenesi PNG sliko</button>
-        </div>
-    </div>
+            <div id="cvLegend" class="hidden mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono text-slate-300 w-full text-center">
+                <div class="bg-slate-900/90 py-1.5 px-2 rounded border border-emerald-500/40 text-emerald-400">● Kroga (Spodaj)</div>
+                <div class="bg-slate-900/90 py-1.5 px-2 rounded border border-red-500/40 text-red-400">▲ Puščica (Vrh)</div>
+                <div class="bg-slate-900/90 py-1.5 px-2 rounded border border-blue-500/40 text-blue-400">✚ Središče (Origin)</div>
+                <div class="bg-slate-900/90 py-1.5 px-2 rounded border border-cyan-500/40 text-cyan-400">◯ Elipsa perspektive</div>
+            </div>
+        </section>
+
+    </main>
 
     <script>
-        // --- GEOMETRIJA ---
-        const CANVAS_SIZE = 400;
+        // ECC GF(256) Constants and Reed-Solomon Code
+        const ECC_SYMBOLS = 16;
+        const GF_EXP = new Uint8Array(512);
+        const GF_LOG = new Uint8Array(256);
+
+        (function initGF() {
+            let x = 1;
+            for (let i = 0; i < 255; i++) {
+                GF_EXP[i] = x;
+                GF_LOG[x] = i;
+                x <<= 1;
+                if (x & 0x100) x ^= 0x11d;
+            }
+            for (let i = 255; i < 512; i++) {
+                GF_EXP[i] = GF_EXP[i - 255];
+            }
+        })();
+
+        function gfMul(x, y) {
+            if (x === 0 || y === 0) return 0;
+            return GF_EXP[GF_LOG[x] + GF_LOG[y]];
+        }
+
+        function rsGeneratorPoly(nsym) {
+            let g = [1];
+            for (let i = 0; i < nsym; i++) {
+                let nextG = new Array(g.length + 1).fill(0);
+                for (let j = 0; j < g.length; j++) {
+                    nextG[j] ^= gfMul(g[j], GF_EXP[i]);
+                    nextG[j + 1] ^= g[j];
+                }
+                g = nextG;
+            }
+            return g;
+        }
+
+        function rsEncode(msg, nsym) {
+            const gen = rsGeneratorPoly(nsym);
+            const res = new Uint8Array(msg.length + nsym);
+            res.set(msg);
+
+            for (let i = 0; i < msg.length; i++) {
+                const coef = res[i];
+                if (coef !== 0) {
+                    for (let j = 0; j < gen.length; j++) {
+                        res[i + j] ^= gfMul(gen[j], coef);
+                    }
+                }
+            }
+            res.set(msg);
+            return res;
+        }
+
+        function pushBits(arr, val, count) {
+            for (let i = count - 1; i >= 0; i--) {
+                arr.push((val >> i) & 1);
+            }
+        }
+
+        function compressAndEncode(text) {
+            let mode = "6bit";
+            if (/^\d+$/.test(text)) {
+                mode = "numeric";
+            }
+
+            let bits = [];
+            if (mode === "numeric") {
+                pushBits(bits, 1, 3);
+                pushBits(bits, text.length, 12);
+                for (let i = 0; i < text.length; i++) {
+                    pushBits(bits, parseInt(text[i]), 4);
+                }
+            } else {
+                const encoder = new TextEncoder();
+                const bytes = Array.from(encoder.encode(text));
+                pushBits(bits, 2, 3);
+                pushBits(bits, bytes.length, 12);
+                bytes.forEach(b => pushBits(bits, b, 8));
+            }
+
+            let dataBytes = [];
+            for (let i = 0; i < bits.length; i += 8) {
+                let byte = 0;
+                for (let b = 0; b < 8; b++) {
+                    if (i + b < bits.length) {
+                        byte = (byte << 1) | bits[i + b];
+                    } else {
+                        byte = (byte << 1);
+                    }
+                }
+                dataBytes.push(byte);
+            }
+
+            return { bytes: dataBytes, mode: mode };
+        }
+
+        const CANVAS_SIZE = 560; // Expanded to ensure 40px Quiet Zone border
         const CENTER = CANVAS_SIZE / 2;
-        const HEX_RADIUS = 35;
-        const RING_START = 60;
+        const HEX_RADIUS = 38;
+        const RING_START = 64;
         const RING_GAP = 14;
         const LINE_THICKNESS = 8;
-        const MAX_RADIUS = 180;
-        
-        // Varnostni pas ob oseh, kjer ni podatkov
+        const CUBE_LINE_THICKNESS = 5;
+        const MAX_RADIUS = 200;
         const KEEPOUT_MARGIN_PX = 14; 
+        
+        // Axis 0 = Top (-90° / -PI/2), Axis 1 = Bottom Right (+30° / PI/6), Axis 2 = Bottom Left (+150° / 5PI/6)
         const AXIS_ANGLES = [-Math.PI / 2, Math.PI / 6, (5 * Math.PI) / 6];
-
-        function calculateChecksum(dataBytes) {
-            let chk = 0;
-            for (let i = 0; i < dataBytes.length; i++) chk = (chk + dataBytes[i]) % 256;
-            return chk ^ 0xAA;
-        }
 
         function showMessage(elementId, text, isError = false) {
             const el = document.getElementById(elementId);
             el.innerText = text;
-            el.style.color = isError ? "var(--danger)" : "var(--success)";
+            el.className = isError ? "text-red-400 font-semibold" : "text-emerald-400 font-semibold";
         }
 
         function generateHexArc() {
-            let text = document.getElementById('textInput').value;
+            let text = document.getElementById('textInput').value.trim();
             const canvas = document.getElementById('hexCanvas');
             const ctx = canvas.getContext('2d');
-            document.getElementById('genMsg').innerText = "";
-
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-
-            const encoder = new TextEncoder();
-            let textBytes = Array.from(encoder.encode(text));
+            const cvOverlay = document.getElementById('cvOverlayToggle').checked;
             
-            if (textBytes.length > 200) {
-                textBytes = textBytes.slice(0, 200);
-                showMessage('genMsg', "Opozorilo: Besedilo je bilo skrajšano na 200 znakov.", true);
+            document.getElementById('cvLegend').style.display = cvOverlay ? 'grid' : 'none';
+
+            if (!text) {
+                text = "HexArc";
             }
 
-            const checksum = calculateChecksum(textBytes);
-            const allBytes = [textBytes.length, ...textBytes, checksum];
+            const encoded = compressAndEncode(text);
+            const dataBytes = new Uint8Array(encoded.bytes);
+            const fullBytes = rsEncode(dataBytes, ECC_SYMBOLS);
 
             let bitArray = [];
-            allBytes.forEach(byte => {
+            fullBytes.forEach(byte => {
                 for (let i = 7; i >= 0; i--) bitArray.push((byte >> i) & 1);
             });
 
+            let bitIndex = 0;
+            let usedRings = 0;
             let simBitIndex = 0;
-            let finalRadius = RING_START;
-            
-            let tempRadius = RING_START;
-            while (simBitIndex < bitArray.length && tempRadius <= MAX_RADIUS) {
-                finalRadius = tempRadius;
-                const keepoutAngle = KEEPOUT_MARGIN_PX / tempRadius;
+            let calcRadius = RING_START;
+
+            while (simBitIndex < bitArray.length && calcRadius <= MAX_RADIUS) {
+                const keepoutAngle = KEEPOUT_MARGIN_PX / calcRadius;
                 const usableSectorAngle = ((2 * Math.PI) / 3) - (2 * keepoutAngle);
-                const bitsPerSector = Math.floor((usableSectorAngle * tempRadius) / (LINE_THICKNESS + 2));
+                const bitsPerSector = Math.floor((usableSectorAngle * calcRadius) / (LINE_THICKNESS + 2));
                 
                 if (bitsPerSector > 0) {
                     simBitIndex += (bitsPerSector * 3);
                 }
-                tempRadius += RING_GAP;
+                usedRings++;
+                if (simBitIndex >= bitArray.length) break;
+                calcRadius += RING_GAP;
             }
-            
+
             if (simBitIndex < bitArray.length) {
-                showMessage('genMsg', "Koda je polna! Del besedila bo morda odrezan.", true);
+                showMessage('genMsg', "Koda je polna! Besedilo je predolgo.", true);
+            } else {
+                showMessage('genMsg', "Koda uspešno ustvarjena!", false);
             }
+
+            document.getElementById('infoBadge').innerText = 
+                `Zasedeni obroči: ${usedRings} | Način: ${encoded.mode} | Velikost: ${fullBytes.length} B (Reed-Solomon ECC)`;
+
+            // Clear Canvas (Pure white background for Quiet Zone)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            const lastDataRadius = RING_START + (usedRings - 1) * RING_GAP;
+            const BOUNDARY_RING_RADIUS = lastDataRadius + RING_GAP;
+            const AXIS_END_RADIUS = BOUNDARY_RING_RADIUS + 30; 
 
             ctx.fillStyle = '#000000';
             ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 4;
+            ctx.lineWidth = CUBE_LINE_THICKNESS;
             ctx.lineCap = "round";
+            ctx.lineJoin = "round";
 
-            // Sredinski šestkotnik
+            // 1. Sredinski šestkotnik
             ctx.beginPath();
             for (let i = 0; i < 6; i++) {
                 const angle = (Math.PI / 3) * i - Math.PI / 2;
@@ -192,39 +273,128 @@
             ctx.closePath();
             ctx.stroke();
 
-            // 3 Podaljšane Osi prilagojene na finalRadius
-            const AXIS_END_RADIUS = finalRadius + 12;
+            // 2. Pobarvan zgornji romb v kocki
+            ctx.beginPath();
+            ctx.moveTo(CENTER, CENTER);
+            const p1Angle = -Math.PI / 2;
+            const p2Angle = -Math.PI / 6;
+            const p3Angle = -5 * Math.PI / 6;
             
-            AXIS_ANGLES.forEach((angle, index) => {
-                const startX = CENTER + HEX_RADIUS * Math.cos(angle);
-                const startY = CENTER + HEX_RADIUS * Math.sin(angle);
-                const endX = CENTER + AXIS_END_RADIUS * Math.cos(angle);
-                const endY = CENTER + AXIS_END_RADIUS * Math.sin(angle);
+            ctx.lineTo(CENTER + HEX_RADIUS * Math.cos(p3Angle), CENTER + HEX_RADIUS * Math.sin(p3Angle));
+            ctx.lineTo(CENTER + HEX_RADIUS * Math.cos(p1Angle), CENTER + HEX_RADIUS * Math.sin(p1Angle));
+            ctx.lineTo(CENTER + HEX_RADIUS * Math.cos(p2Angle), CENTER + HEX_RADIUS * Math.sin(p2Angle));
+            ctx.closePath();
+            ctx.fill();
 
-                ctx.beginPath();
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(endX, endY);
-                ctx.stroke();
+            // Središčna kontrastna točka (Central Target Dot za Open-CV Centroid Finder)
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(CENTER, CENTER, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(CENTER, CENTER, 2.5, 0, 2 * Math.PI);
+            ctx.fill();
 
-                // Trikotnik na vrhu prve osi (-90°), obrnjen NAVZVEN
-                if (index === 0) {
-                    const triSize = 12;
+            // Store outer landmark positions for CV simulator overlay
+            const markerPositions = [];
+
+            // 3. Glavne osi in novi asimetrični markerji
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i - Math.PI / 2;
+                const hexX = CENTER + HEX_RADIUS * Math.cos(angle);
+                const hexY = CENTER + HEX_RADIUS * Math.sin(angle);
+
+                if (i % 2 === 0) {
+                    // Os poteka do AXIS_END_RADIUS
+                    const endX = CENTER + AXIS_END_RADIUS * Math.cos(angle);
+                    const endY = CENTER + AXIS_END_RADIUS * Math.sin(angle);
+                    
                     ctx.beginPath();
-                    ctx.moveTo(endX + triSize * Math.cos(angle), endY + triSize * Math.sin(angle));
-                    ctx.lineTo(endX + triSize * Math.cos(angle + 2.0), endY + triSize * Math.sin(angle + 2.0));
-                    ctx.lineTo(endX + triSize * Math.cos(angle - 2.0), endY + triSize * Math.sin(angle - 2.0));
-                    ctx.closePath();
-                    ctx.fill();
-                }
-            });
+                    ctx.moveTo(hexX, hexY);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
 
-            // PODATKOVNI OBROČI
-            let bitIndex = 0;
+                    // --- MARKERJI NA TRIS OSEH ---
+                    const axisIndex = i / 2; // 0: Zgoraj (-90°), 1: Spodaj desno (+30°), 2: Spodaj levo (+150°)
+                    markerPositions.push({ x: endX, y: endY, angle: angle, type: axisIndex === 0 ? 'arrow' : 'circle' });
+
+                    if (axisIndex === 0) {
+                        // --- ZGORNJI MARKER: VEČJA OSTRO USMERJENA PUŠČICA / TRIKOTNIK ---
+                        const arrowLength = 22;
+                        const arrowWidth = 18;
+                        
+                        const tipX = endX + arrowLength * Math.cos(angle);
+                        const tipY = endY + arrowLength * Math.sin(angle);
+
+                        const perp = angle + Math.PI / 2;
+                        const leftX = endX + (arrowWidth / 2) * Math.cos(perp);
+                        const leftY = endY + (arrowWidth / 2) * Math.sin(perp);
+                        const rightX = endX - (arrowWidth / 2) * Math.cos(perp);
+                        const rightY = endY - (arrowWidth / 2) * Math.sin(perp);
+
+                        ctx.beginPath();
+                        ctx.moveTo(tipX, tipY);
+                        ctx.lineTo(leftX, leftY);
+                        ctx.lineTo(rightX, rightY);
+                        ctx.closePath();
+                        ctx.fill();
+                    } else {
+                        // --- SPODNJA MARKERJA: POLNA KROGA ---
+                        const circleRadius = 10;
+                        const circleCenterX = endX + circleRadius * Math.cos(angle);
+                        const circleCenterY = endY + circleRadius * Math.sin(angle);
+
+                        ctx.beginPath();
+                        ctx.arc(circleCenterX, circleCenterY, circleRadius, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+
+                } else {
+                    // Notranje osi do središča
+                    ctx.beginPath();
+                    ctx.moveTo(hexX, hexY);
+                    ctx.lineTo(CENTER, CENTER);
+                    ctx.stroke();
+                }
+            }
+
+            // 4. ČASOVNE OZNAKE (Timing Tracks) NA VSEH 3 OSEH
+            const tickLength = 5.5;
+            ctx.lineWidth = 2.5;
+
+            for (let r = RING_START; r <= lastDataRadius; r += RING_GAP) {
+                AXIS_ANGLES.forEach(axisAngle => {
+                    const tickCenterX = CENTER + r * Math.cos(axisAngle);
+                    const tickCenterY = CENTER + r * Math.sin(axisAngle);
+                    const perpAngle = axisAngle + Math.PI / 2;
+
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        tickCenterX + tickLength * Math.cos(perpAngle),
+                        tickCenterY + tickLength * Math.sin(perpAngle)
+                    );
+                    ctx.lineTo(
+                        tickCenterX - tickLength * Math.cos(perpAngle),
+                        tickCenterY - tickLength * Math.sin(perpAngle)
+                    );
+                    ctx.stroke();
+                });
+            }
+
+            // 5. ZUNANJA OBROBA (Boundary Ring za izračun perspektivne elipse)
+            ctx.beginPath();
+            ctx.lineWidth = LINE_THICKNESS;
+            ctx.arc(CENTER, CENTER, BOUNDARY_RING_RADIUS, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            // 6. PODATKOVNI OBROČI (Arcs)
+            bitIndex = 0;
             let currentRadius = RING_START;
             ctx.lineWidth = LINE_THICKNESS;
             ctx.lineCap = "butt";
 
-            while (bitIndex < bitArray.length && currentRadius <= MAX_RADIUS) {
+            while (bitIndex < bitArray.length && currentRadius <= lastDataRadius) {
                 const keepoutAngle = KEEPOUT_MARGIN_PX / currentRadius;
                 const usableSectorAngle = ((2 * Math.PI) / 3) - (2 * keepoutAngle);
                 const bitsPerSector = Math.floor((usableSectorAngle * currentRadius) / (LINE_THICKNESS + 2));
@@ -242,7 +412,7 @@
                                 const bitEnd = bitStart + anglePerBit;
                                 
                                 ctx.beginPath();
-                                ctx.arc(CENTER, CENTER, currentRadius, bitStart, bitEnd + 0.02);
+                                ctx.arc(CENTER, CENTER, currentRadius, bitStart, bitEnd + 0.015);
                                 ctx.stroke();
                             }
                             bitIndex++;
@@ -251,365 +421,71 @@
                 }
                 currentRadius += RING_GAP;
             }
+
+            if (cvOverlay) {
+                // Draw perspective boundary circle detector
+                ctx.strokeStyle = '#06b6d4'; // Cyan
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 6]);
+                ctx.beginPath();
+                ctx.arc(CENTER, CENTER, BOUNDARY_RING_RADIUS + 4, 0, 2 * Math.PI);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Draw central origin detector
+                ctx.strokeStyle = '#3b82f6'; // Blue
+                ctx.beginPath();
+                ctx.arc(CENTER, CENTER, 18, 0, 2 * Math.PI);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(CENTER - 24, CENTER); ctx.lineTo(CENTER + 24, CENTER);
+                ctx.moveTo(CENTER, CENTER - 24); ctx.lineTo(CENTER, CENTER + 24);
+                ctx.stroke();
+
+                // Draw detected landmarks (Circles vs Arrow)
+                markerPositions.forEach(m => {
+                    if (m.type === 'circle') {
+                        const cx = m.x + 10 * Math.cos(m.angle);
+                        const cy = m.y + 10 * Math.sin(m.angle);
+                        ctx.strokeStyle = '#10b981'; // Emerald
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, 16, 0, 2 * Math.PI);
+                        ctx.stroke();
+                    } else {
+                        // Arrow tip detector
+                        const tipX = m.x + 22 * Math.cos(m.angle);
+                        const tipY = m.y + 22 * Math.sin(m.angle);
+                        ctx.strokeStyle = '#ef4444'; // Red
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.arc(tipX, tipY, 16, 0, 2 * Math.PI);
+                        ctx.stroke();
+                    }
+                });
+
+                // Orientation Triangle overlay connecting detector centers
+                const topP = { x: markerPositions[0].x + 22 * Math.cos(markerPositions[0].angle), y: markerPositions[0].y + 22 * Math.sin(markerPositions[0].angle) };
+                const c1P = { x: markerPositions[1].x + 10 * Math.cos(markerPositions[1].angle), y: markerPositions[1].y + 10 * Math.sin(markerPositions[1].angle) };
+                const c2P = { x: markerPositions[2].x + 10 * Math.cos(markerPositions[2].angle), y: markerPositions[2].y + 10 * Math.sin(markerPositions[2].angle) };
+
+                ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)'; // Amber
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(topP.x, topP.y);
+                ctx.lineTo(c1P.x, c1P.y);
+                ctx.lineTo(c2P.x, c2P.y);
+                ctx.closePath();
+                ctx.stroke();
+            }
         }
 
         function downloadCode() {
             const canvas = document.getElementById('hexCanvas');
             const link = document.createElement('a');
-            link.download = 'HexArc_Code.png';
+            link.download = 'HexArc_v3_Code.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
-        }
-
-        // --- ROBUSNI BRALNIK Z ZDRUŽEVANJEM ELEMENTOV (DILATION/CLOSING) TER DINAMIČNO ORIENTACIJO ---
-
-        function processAndWarpCanvas(sourceCanvas) {
-            if (!cvReady || typeof cv === 'undefined') {
-                return sourceCanvas;
-            }
-
-            try {
-                // Prilagodi velikost platna na največ 800px za hitrejšo obdelavo in preprečitev zmrzovanja brskalnika
-                const MAX_DIM = 800;
-                let processCanvas = sourceCanvas;
-
-                if (sourceCanvas.width > MAX_DIM || sourceCanvas.height > MAX_DIM) {
-                    const scale = Math.min(MAX_DIM / sourceCanvas.width, MAX_DIM / sourceCanvas.height);
-                    const scaledCanvas = document.createElement('canvas');
-                    scaledCanvas.width = Math.round(sourceCanvas.width * scale);
-                    scaledCanvas.height = Math.round(sourceCanvas.height * scale);
-                    const sCtx = scaledCanvas.getContext('2d');
-                    sCtx.drawImage(sourceCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
-                    processCanvas = scaledCanvas;
-                }
-
-                let src = cv.imread(processCanvas);
-                let gray = new cv.Mat();
-                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-
-                let binary = new cv.Mat();
-                cv.threshold(gray, binary, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU);
-
-                // Morfološko raztezanje (Dilation) za povezavo vseh ločenih lokov in oseh v enoten blobl
-                let dilated = new cv.Mat();
-                let kernelSize = Math.max(15, Math.floor(Math.min(processCanvas.width, processCanvas.height) / 20));
-                let M_kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(kernelSize, kernelSize));
-                cv.dilate(binary, dilated, M_kernel);
-
-                let contours = new cv.MatVector();
-                let hierarchy = new cv.Mat();
-                cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-                let bestContour = null;
-                let maxArea = 0;
-                let minAreaThreshold = (processCanvas.width * processCanvas.height) * 0.01;
-
-                for (let i = 0; i < contours.size(); ++i) {
-                    let cnt = contours.get(i);
-                    let area = cv.contourArea(cnt);
-                    if (area > maxArea && area >= minAreaThreshold) {
-                        maxArea = area;
-                        bestContour = cnt;
-                    }
-                }
-
-                if (!bestContour) {
-                    gray.delete(); binary.delete(); dilated.delete(); M_kernel.delete(); contours.delete(); hierarchy.delete(); src.delete();
-                    return sourceCanvas;
-                }
-
-                // Poiščemo pravokotnik z najmanjšo površino okoli združenega simbola (minAreaRect)
-                let rect = cv.minAreaRect(bestContour);
-                let vertices = cv.RotatedRect.points(rect);
-
-                let pts = [];
-                for (let i = 0; i < 4; i++) {
-                    pts.push({ x: vertices[i].x, y: vertices[i].y });
-                }
-
-                // Pravilno razvrščanje 4 oglišč (Zgoraj-Levo, Zgoraj-Desno, Spodaj-Desno, Spodaj-Levo)
-                let sortedY = pts.slice().sort((a, b) => a.y - b.y);
-                let topTwo = sortedY.slice(0, 2).sort((a, b) => a.x - b.x);
-                let bottomTwo = sortedY.slice(2, 4).sort((a, b) => a.x - b.x);
-
-                let topLeft = topTwo[0];
-                let topRight = topTwo[1];
-                let bottomLeft = bottomTwo[0];
-                let bottomRight = bottomTwo[1];
-
-                let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-                    topLeft.x, topLeft.y,
-                    topRight.x, topRight.y,
-                    bottomRight.x, bottomRight.y,
-                    bottomLeft.x, bottomLeft.y
-                ]);
-
-                const margin = 15;
-                let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-                    margin, margin,
-                    CANVAS_SIZE - margin, margin,
-                    CANVAS_SIZE - margin, CANVAS_SIZE - margin,
-                    margin, CANVAS_SIZE - margin
-                ]);
-
-                let M_warp = cv.getPerspectiveTransform(srcTri, dstTri);
-                let dst = new cv.Mat();
-                let dsize = new cv.Size(CANVAS_SIZE, CANVAS_SIZE);
-                cv.warpPerspective(src, dst, M_warp, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar(255, 255, 255, 255));
-
-                let warpedCanvas = document.createElement('canvas');
-                warpedCanvas.width = CANVAS_SIZE;
-                warpedCanvas.height = CANVAS_SIZE;
-                cv.imshow(warpedCanvas, dst);
-
-                src.delete(); gray.delete(); binary.delete(); dilated.delete(); M_kernel.delete(); contours.delete(); hierarchy.delete();
-                srcTri.delete(); dstTri.delete(); M_warp.delete(); dst.delete();
-
-                return warpedCanvas;
-            } catch (e) {
-                console.error("Napaka pri OpenCV obdelavi:", e);
-                return sourceCanvas;
-            }
-        }
-
-        // Iskanje dejanskega zunanjega radija osi na poravnani sliki za natančno lokacijo trikotnika
-        function findOuterAxisRadius(canvas) {
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            const imgData = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-            const data = imgData.data;
-
-            let maxR = RING_START;
-            for (let r = MAX_RADIUS + 25; r >= RING_START; r -= 2) {
-                let darkFound = false;
-                for (let step = 0; step < 72; step++) {
-                    const angle = (step * Math.PI) / 36;
-                    const px = Math.round(CENTER + r * Math.cos(angle));
-                    const py = Math.round(CENTER + r * Math.sin(angle));
-                    if (px >= 0 && px < CANVAS_SIZE && py >= 0 && py < CANVAS_SIZE) {
-                        const idx = (py * CANVAS_SIZE + px) * 4;
-                        if ((data[idx] + data[idx+1] + data[idx+2]) / 3 < 140) {
-                            darkFound = true;
-                            break;
-                        }
-                    }
-                }
-                if (darkFound) {
-                    maxR = r;
-                    break;
-                }
-            }
-            return maxR;
-        }
-
-        // Vzorčenje bitov za poljuben kot rotacije
-        function tryDecodeWithRotationAngle(sourceCanvas, rotationAngle) {
-            const ctx = sourceCanvas.getContext('2d', { willReadFrequently: true });
-            const imgData = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-            const data = imgData.data;
-
-            let readBits = [];
-            let samplePoints = [];
-            let currentRadius = RING_START;
-
-            while (currentRadius <= MAX_RADIUS) {
-                const keepoutAngle = KEEPOUT_MARGIN_PX / currentRadius;
-                const usableSectorAngle = ((2 * Math.PI) / 3) - (2 * keepoutAngle);
-                const bitsPerSector = Math.floor((usableSectorAngle * currentRadius) / (LINE_THICKNESS + 2));
-                const anglePerBit = usableSectorAngle / bitsPerSector;
-
-                if (bitsPerSector > 0) {
-                    for (let s = 0; s < 3; s++) {
-                        const startSectorAngle = AXIS_ANGLES[s] + rotationAngle + keepoutAngle;
-                        
-                        for (let b = 0; b < bitsPerSector; b++) {
-                            const angle = startSectorAngle + (b * anglePerBit) + (anglePerBit / 2);
-                            const sampleX = Math.round(CENTER + currentRadius * Math.cos(angle));
-                            const sampleY = Math.round(CENTER + currentRadius * Math.sin(angle));
-
-                            let minBrightness = 255; 
-                            for (let dy = -1; dy <= 1; dy++) {
-                                for (let dx = -1; dx <= 1; dx++) {
-                                    const px = sampleX + dx;
-                                    const py = sampleY + dy;
-                                    if (px >= 0 && px < CANVAS_SIZE && py >= 0 && py < CANVAS_SIZE) {
-                                        const idx = (py * CANVAS_SIZE + px) * 4;
-                                        const brightness = (data[idx] + data[idx+1] + data[idx+2]) / 3;
-                                        if (brightness < minBrightness) minBrightness = brightness;
-                                    }
-                                }
-                            }
-                            
-                            const isBitOne = minBrightness < 140;
-                            readBits.push(isBitOne ? 1 : 0);
-                            samplePoints.push({ x: sampleX, y: sampleY, isOne: isBitOne });
-                        }
-                    }
-                }
-                currentRadius += RING_GAP;
-            }
-
-            let bytes = [];
-            for (let i = 0; i < readBits.length; i += 8) {
-                if (i + 8 > readBits.length) break;
-                let byteVal = 0;
-                for (let b = 0; b < 8; b++) byteVal = (byteVal << 1) | readBits[i + b];
-                bytes.push(byteVal);
-            }
-
-            if (bytes.length < 2) return { text: null, samplePoints };
-
-            const length = bytes[0];
-            if (length === 0 || length > 200 || bytes.length < length + 2) return { text: null, samplePoints };
-
-            const textBytes = bytes.slice(1, length + 1);
-            const readChecksum = bytes[length + 1];
-
-            if (calculateChecksum(textBytes) === readChecksum) {
-                try {
-                    const decoder = new TextDecoder();
-                    return { text: decoder.decode(new Uint8Array(textBytes)), samplePoints };
-                } catch(e) { return { text: null, samplePoints }; }
-            }
-
-            return { text: null, samplePoints };
-        }
-
-        function decodeImage(sourceCanvas) {
-            const debugContainer = document.getElementById('debugCanvasContainer');
-            const debugCanvas = document.getElementById('debugCanvas');
-            debugContainer.style.display = "block";
-            const dCtx = debugCanvas.getContext('2d');
-
-            // 1. Zaznava in perspektivna poravnava z OpenCV združevanjem
-            const warpedCanvas = processAndWarpCanvas(sourceCanvas);
-
-            // Narišemo poravnano sliko na debug canvas
-            dCtx.drawImage(warpedCanvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-
-            // 2. Dinamično iskanje zunanjega radija osi in rotacijskega kota
-            const detectedOuterRadius = findOuterAxisRadius(warpedCanvas);
-
-            let bestResult = null;
-            let bestPoints = [];
-
-            // Preiščemo rotacije s korakom 5 stopinj (ter 120° sektorje), da zagotovimo delovanje za poljubno rotacijo
-            for (let deg = 0; deg < 120; deg += 5) {
-                const baseRad = (deg * Math.PI) / 180;
-                for (let s = 0; s < 3; s++) {
-                    const rotAngle = baseRad + (s * ((2 * Math.PI) / 3));
-                    const res = tryDecodeWithRotationAngle(warpedCanvas, rotAngle);
-                    if (res.samplePoints.length > 0 && bestPoints.length === 0) bestPoints = res.samplePoints;
-                    if (res.text) {
-                        bestResult = res.text;
-                        bestPoints = res.samplePoints;
-                        break;
-                    }
-                }
-                if (bestResult) break;
-            }
-
-            // Narišemo vzorčevalne točke bitov (zeleno = 1, rdeče = 0)
-            bestPoints.forEach(pt => {
-                dCtx.fillStyle = pt.isOne ? '#22c55e' : '#ef4444';
-                dCtx.fillRect(pt.x - 1.5, pt.y - 1.5, 3, 3);
-            });
-
-            return bestResult;
-        }
-
-        function showResult(text, success) {
-            const outputBox = document.getElementById('decodedOutput');
-            if (success) {
-                outputBox.innerText = text;
-                outputBox.style.color = "#15803d";
-                outputBox.style.borderColor = "#22c55e";
-                outputBox.style.backgroundColor = "#f0fdf4";
-            } else {
-                outputBox.innerText = text;
-                outputBox.style.color = "#b91c1c";
-                outputBox.style.borderColor = "#ef4444";
-                outputBox.style.backgroundColor = "#fef2f2";
-            }
-        }
-
-        function decodeFromFile(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = img.width || CANVAS_SIZE;
-                    tempCanvas.height = img.height || CANVAS_SIZE;
-                    const ctx = tempCanvas.getContext('2d');
-                    
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-                    ctx.drawImage(img, 0, 0);
-
-                    const result = decodeImage(tempCanvas);
-                    if (result) showResult("Prebrano: " + result, true);
-                    else showResult("Napaka: Kode ni bilo mogoče prebrati. Preveri 'Debug' sliko zgoraj.", false);
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        let videoStream = null;
-
-        async function startCamera() {
-            const video = document.getElementById('webcam');
-            const wrapper = document.getElementById('cameraWrapper');
-            const stopBtn = document.getElementById('stopCamBtn');
-            
-            try {
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                video.srcObject = videoStream;
-                wrapper.style.display = "block";
-                stopBtn.style.display = "block";
-                showResult("Kamera je aktivna. Usmeri kamero v kodu in klikni 'Skeniraj trenutno sliko'.", false);
-            } catch (err) {
-                showResult("Kamera ni na voljo.", false);
-            }
-        }
-
-        function captureAndScan() {
-            const video = document.getElementById('webcam');
-            if (!video || !videoStream || video.readyState !== video.HAVE_ENOUGH_DATA) {
-                showResult("Posnetek iz kamere ni pripravljen.", false);
-                return;
-            }
-
-            const tempCanvas = document.createElement('canvas');
-            const size = Math.min(video.videoWidth, video.videoHeight);
-            const startX = (video.videoWidth - size) / 2;
-            const startY = (video.videoHeight - size) / 2;
-
-            tempCanvas.width = CANVAS_SIZE;
-            tempCanvas.height = CANVAS_SIZE;
-            const ctx = tempCanvas.getContext('2d');
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-            ctx.drawImage(video, startX, startY, size, size, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-
-            const result = decodeImage(tempCanvas);
-            if (result) {
-                showResult("Prebrano: " + result, true);
-            } else {
-                showResult("Napaka: Kode na posnetku ni bilo mogoče prebrati. Preveri 'Debug' sliko zgoraj.", false);
-            }
-        }
-
-        function stopCamera() {
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-                videoStream = null;
-            }
-            document.getElementById('cameraWrapper').style.display = "none";
-            document.getElementById('stopCamBtn').style.display = "none";
         }
 
         window.onload = generateHexArc;
