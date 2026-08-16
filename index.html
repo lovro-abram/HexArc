@@ -42,21 +42,6 @@
                 </div>
 
                 <div id="genMsg" class="text-sm font-medium mb-3"></div>
-                <div id="infoBadge" class="bg-slate-900/80 text-xs text-slate-400 p-3 rounded-lg border border-slate-700/50 mb-6 font-mono"></div>
-
-                <!-- Feature Toggle -->
-                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700/80 mb-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <span class="block text-sm font-semibold text-slate-200">CV Bralni Overlay</span>
-                            <span class="text-xs text-slate-400">Prikaži kako algoritem zazna točke</span>
-                        </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="cvOverlayToggle" onchange="generateHexArc()" class="sr-only peer">
-                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                        </label>
-                    </div>
-                </div>
             </div>
 
             <div>
@@ -71,13 +56,6 @@
         <section class="lg:col-span-7 bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col items-center justify-center relative min-h-[480px]">
             <div class="bg-white p-4 rounded-2xl shadow-inner max-w-full flex items-center justify-center">
                 <canvas id="hexCanvas" width="560" height="560" class="max-w-full h-auto rounded-lg"></canvas>
-            </div>
-            
-            <div id="cvLegend" class="hidden mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono text-slate-300 w-full text-center">
-                <div class="bg-slate-900/90 py-1.5 px-2 rounded border border-emerald-500/40 text-emerald-400">● Kroga (Spodaj)</div>
-                <div class="bg-slate-900/90 py-1.5 px-2 rounded border border-red-500/40 text-red-400">▲ Puščica (Vrh)</div>
-                <div class="bg-slate-900/90 py-1.5 px-2 rounded border border-blue-500/40 text-blue-400">✚ Središče (Origin)</div>
-                <div class="bg-slate-900/90 py-1.5 px-2 rounded border border-cyan-500/40 text-cyan-400">◯ Elipsa perspektive</div>
             </div>
         </section>
 
@@ -203,9 +181,6 @@
             let text = document.getElementById('textInput').value.trim();
             const canvas = document.getElementById('hexCanvas');
             const ctx = canvas.getContext('2d');
-            const cvOverlay = document.getElementById('cvOverlayToggle').checked;
-            
-            document.getElementById('cvLegend').style.display = cvOverlay ? 'grid' : 'none';
 
             if (!text) {
                 text = "HexArc";
@@ -244,9 +219,6 @@
                 showMessage('genMsg', "Koda uspešno ustvarjena!", false);
             }
 
-            document.getElementById('infoBadge').innerText = 
-                `Zasedeni obroči: ${usedRings} | Način: ${encoded.mode} | Velikost: ${fullBytes.length} B (Reed-Solomon ECC)`;
-
             // Clear Canvas (Pure white background for Quiet Zone)
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
@@ -284,16 +256,6 @@
             ctx.lineTo(CENTER + HEX_RADIUS * Math.cos(p1Angle), CENTER + HEX_RADIUS * Math.sin(p1Angle));
             ctx.lineTo(CENTER + HEX_RADIUS * Math.cos(p2Angle), CENTER + HEX_RADIUS * Math.sin(p2Angle));
             ctx.closePath();
-            ctx.fill();
-
-            // Središčna kontrastna točka (Central Target Dot za Open-CV Centroid Finder)
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(CENTER, CENTER, 5, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.arc(CENTER, CENTER, 2.5, 0, 2 * Math.PI);
             ctx.fill();
 
             // Store outer landmark positions for CV simulator overlay
@@ -420,63 +382,6 @@
                     }
                 }
                 currentRadius += RING_GAP;
-            }
-
-            if (cvOverlay) {
-                // Draw perspective boundary circle detector
-                ctx.strokeStyle = '#06b6d4'; // Cyan
-                ctx.lineWidth = 2;
-                ctx.setLineDash([6, 6]);
-                ctx.beginPath();
-                ctx.arc(CENTER, CENTER, BOUNDARY_RING_RADIUS + 4, 0, 2 * Math.PI);
-                ctx.stroke();
-                ctx.setLineDash([]);
-
-                // Draw central origin detector
-                ctx.strokeStyle = '#3b82f6'; // Blue
-                ctx.beginPath();
-                ctx.arc(CENTER, CENTER, 18, 0, 2 * Math.PI);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(CENTER - 24, CENTER); ctx.lineTo(CENTER + 24, CENTER);
-                ctx.moveTo(CENTER, CENTER - 24); ctx.lineTo(CENTER, CENTER + 24);
-                ctx.stroke();
-
-                // Draw detected landmarks (Circles vs Arrow)
-                markerPositions.forEach(m => {
-                    if (m.type === 'circle') {
-                        const cx = m.x + 10 * Math.cos(m.angle);
-                        const cy = m.y + 10 * Math.sin(m.angle);
-                        ctx.strokeStyle = '#10b981'; // Emerald
-                        ctx.lineWidth = 3;
-                        ctx.beginPath();
-                        ctx.arc(cx, cy, 16, 0, 2 * Math.PI);
-                        ctx.stroke();
-                    } else {
-                        // Arrow tip detector
-                        const tipX = m.x + 22 * Math.cos(m.angle);
-                        const tipY = m.y + 22 * Math.sin(m.angle);
-                        ctx.strokeStyle = '#ef4444'; // Red
-                        ctx.lineWidth = 3;
-                        ctx.beginPath();
-                        ctx.arc(tipX, tipY, 16, 0, 2 * Math.PI);
-                        ctx.stroke();
-                    }
-                });
-
-                // Orientation Triangle overlay connecting detector centers
-                const topP = { x: markerPositions[0].x + 22 * Math.cos(markerPositions[0].angle), y: markerPositions[0].y + 22 * Math.sin(markerPositions[0].angle) };
-                const c1P = { x: markerPositions[1].x + 10 * Math.cos(markerPositions[1].angle), y: markerPositions[1].y + 10 * Math.sin(markerPositions[1].angle) };
-                const c2P = { x: markerPositions[2].x + 10 * Math.cos(markerPositions[2].angle), y: markerPositions[2].y + 10 * Math.sin(markerPositions[2].angle) };
-
-                ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)'; // Amber
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(topP.x, topP.y);
-                ctx.lineTo(c1P.x, c1P.y);
-                ctx.lineTo(c2P.x, c2P.y);
-                ctx.closePath();
-                ctx.stroke();
             }
         }
 
