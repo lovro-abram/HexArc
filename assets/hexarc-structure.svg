@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="100%" height="100%" style="background:#0f172a; font-family:'Inter', system-ui, sans-serif;">
+  <!-- Definitions -->
+  <defs>
+    <style>
+      .title { fill: #38bdf8; font-size: 20px; font-weight: bold; text-anchor: middle; }
+      .label { fill: #f8fafc; font-size: 13px; font-weight: 500; }
+      .sublabel { fill: #94a3b8; font-size: 11px; }
+      .axis-line { stroke: #e2e8f0; stroke-width: 3; stroke-linecap: round; }
+      .inner-line { stroke: #e2e8f0; stroke-width: 3; }
+      .ring-line { stroke: #38bdf8; stroke-width: 6; fill: none; stroke-linecap: butt; }
+      .boundary-ring { stroke: #f43f5e; stroke-width: 5; fill: none; stroke-dasharray: 6 4; }
+      .tick-line { stroke: #f59e0b; stroke-width: 2.5; }
+      .guide-line { stroke: #64748b; stroke-width: 1; stroke-dasharray: 4 4; }
+    </style>
+  </defs>
+
+  <!-- Title -->
+  <text x="300" y="35" class="title">HexArc Code - Visual Anatomy / Anatomija Kode</text>
+
+  <!-- Quiet Zone Outer Box -->
+  <rect x="50" y="50" width="500" height="500" fill="#ffffff" rx="16" stroke="#334155" stroke-width="2"/>
+  <rect x="50" y="50" width="500" height="500" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6 4" rx="16"/>
+  <text x="65" y="75" fill="#d97706" font-size="12" font-weight="bold">Quiet Zone (min 40px / radij 280px)</text>
+
+  <!-- Center (300, 300) -->
+  <!-- Center Hexagon / Cube -->
+  <!-- R = 38 -->
+  <!-- Vertices at angle -90 + k*60 deg -->
+  <!-- k=0: (300, 262) -->
+  <!-- k=1: (300 + 38*cos(-30°), 300 + 38*sin(-30°)) = (332.9, 281) -->
+  <!-- k=2: (300 + 38*cos(30°), 300 + 38*sin(30°)) = (332.9, 319) -->
+  <!-- k=3: (300, 338) -->
+  <!-- k=4: (300 - 38*cos(30°), 300 + 38*sin(30°)) = (267.1, 319) -->
+  <!-- k=5: (300 - 38*cos(-30°), 300 + 38*sin(-30°)) = (267.1, 281) -->
+
+  <g id="center-cube">
+    <!-- Outer Hexagon -->
+    <polygon points="300,262 332.9,281 332.9,319 300,338 267.1,319 267.1,281" fill="none" stroke="#000000" stroke-width="4" stroke-linejoin="round"/>
+    <!-- Shaded Top Rhombus: Center (300,300), (267.1,281), (300,262), (332.9,281) -->
+    <polygon points="300,300 267.1,281 300,262 332.9,281" fill="#000000"/>
+    <!-- Inner Y lines -->
+    <line x1="300" y1="300" x2="300" y2="338" stroke="#000000" stroke-width="4"/>
+    <line x1="300" y1="300" x2="267.1" y2="281" stroke="#000000" stroke-width="4"/>
+    <line x1="300" y1="300" x2="332.9" y2="281" stroke="#000000" stroke-width="4"/>
+  </g>
+
+  <!-- Data Arcs at r=64, r=78, r=92... -->
+  <!-- Axis 0 = -90° (Top), Axis 1 = +30° (Bottom Right), Axis 2 = +150° (Bottom Left) -->
+  <!-- Example Data Arcs -->
+  <g id="data-arcs">
+    <!-- Ring 1 (r=64) Arcs -->
+    <!-- Sector 0: start -90 + keepout ~ -77.5°, end +30 - keepout ~ 17.5° -->
+    <path d="M 314,237 A 64 64 0 0 1 361,281" stroke="#000000" stroke-width="7" fill="none"/>
+    <path d="M 239,321 A 64 64 0 0 1 237,286" stroke="#000000" stroke-width="7" fill="none"/>
+
+    <!-- Ring 2 (r=78) Arcs -->
+    <path d="M 314,223 A 78 78 0 0 1 374,261" stroke="#000000" stroke-width="7" fill="none"/>
+    <path d="M 368,339 A 78 78 0 0 1 314,377" stroke="#000000" stroke-width="7" fill="none"/>
+    <path d="M 226,326 A 78 78 0 0 1 223,286" stroke="#000000" stroke-width="7" fill="none"/>
+
+    <!-- Ring 3 (r=92) Arcs -->
+    <path d="M 314,209 A 92 92 0 0 1 388,254" stroke="#000000" stroke-width="7" fill="none"/>
+    <path d="M 388,346 A 92 92 0 0 1 314,391" stroke="#000000" stroke-width="7" fill="none"/>
+  </g>
+
+  <!-- Boundary Ring (r=106) -->
+  <circle cx="300" cy="300" r="106" class="boundary-ring"/>
+
+  <!-- Main Axes (Top -90°, Bottom Right 30°, Bottom Left 150°) -->
+  <!-- Axis End R = 106 + 30 = 136 -->
+  <!-- Top Axis: (300, 300) to (300, 164) -->
+  <line x1="300" y1="262" x2="300" y2="164" class="axis-line" stroke="#000000"/>
+  <!-- BR Axis: (300, 300) to (300 + 136*cos(30°), 300 + 136*sin(30°)) = (417.8, 368) -->
+  <line x1="332.9" y1="319" x2="417.8" y2="368" class="axis-line" stroke="#000000"/>
+  <!-- BL Axis: (300, 300) to (300 - 136*cos(30°), 300 + 136*sin(30°)) = (182.2, 368) -->
+  <line x1="267.1" y1="319" x2="182.2" y2="368" class="axis-line" stroke="#000000"/>
+
+  <!-- Timing Ticks on 3 Axes at r=64, 78, 92 -->
+  <g id="timing-ticks">
+    <!-- Top Axis (r=64, 78, 92) y = 300 - r -->
+    <line x1="295" y1="236" x2="305" y2="236" class="tick-line"/>
+    <line x1="295" y1="222" x2="305" y2="222" class="tick-line"/>
+    <line x1="295" y1="208" x2="305" y2="208" class="tick-line"/>
+  </g>
+
+  <!-- Axis Markers -->
+  <!-- Top Marker: Triangle / Arrow Tip at (300, 164) pointing Up (-90°) -->
+  <!-- Tip: (300, 142), Left: (291, 164), Right: (309, 164) -->
+  <polygon points="300,142 291,164 309,164" fill="#000000"/>
+
+  <!-- Bottom Right Marker: Circle at (417.8, 368) + 10px offset along 30° -->
+  <!-- Center: (417.8 + 10*cos(30°), 368 + 10*sin(30°)) = (426.5, 373) -->
+  <circle cx="426.5" cy="373" r="10" fill="#000000"/>
+
+  <!-- Bottom Left Marker: Circle at (182.2, 368) + 10px offset along 150° -->
+  <!-- Center: (182.2 - 10*cos(30°), 368 + 10*sin(30°)) = (173.5, 373) -->
+  <circle cx="173.5" cy="373" r="10" fill="#000000"/>
+
+  <!-- Callout Annotations -->
+  <!-- 1. Top Arrow Marker -->
+  <line x1="300" y1="142" x2="440" y2="100" stroke="#38bdf8" stroke-width="1.5"/>
+  <circle cx="440" cy="100" r="3" fill="#38bdf8"/>
+  <text x="448" y="98" fill="#38bdf8" font-size="13" font-weight="bold">Zgornji marker (Puščica / Arrow)</text>
+  <text x="448" y="113" fill="#94a3b8" font-size="11">Orientacija (-90° / Axis 0)</text>
+
+  <!-- 2. Central Cube / Šestkotnik -->
+  <line x1="267" y1="281" x2="110" y2="240" stroke="#38bdf8" stroke-width="1.5"/>
+  <circle cx="110" cy="240" r="3" fill="#38bdf8"/>
+  <text x="105" y="225" fill="#38bdf8" font-size="13" font-weight="bold" text-anchor="end">Sredinska kocka / Hexagon</text>
+  <text x="105" y="240" fill="#94a3b8" font-size="11" text-anchor="end">R = 38px, osenčen zgornji romb</text>
+
+  <!-- 3. Bottom Circles -->
+  <line x1="426.5" y1="373" x2="480" y2="440" stroke="#38bdf8" stroke-width="1.5"/>
+  <circle cx="480" cy="440" r="3" fill="#38bdf8"/>
+  <text x="485" y="440" fill="#38bdf8" font-size="13" font-weight="bold">Spodnja markerja (Kroga)</text>
+  <text x="485" y="455" fill="#94a3b8" font-size="11">r = 10px (+30° in +150°)</text>
+
+  <!-- 4. Timing Ticks -->
+  <line x1="305" y1="222" x2="440" y2="200" stroke="#f59e0b" stroke-width="1.5"/>
+  <circle cx="440" cy="200" r="3" fill="#f59e0b"/>
+  <text x="448" y="198" fill="#f59e0b" font-size="13" font-weight="bold">Časovne oznake (Timing Ticks)</text>
+  <text x="448" y="213" fill="#94a3b8" font-size="11">Prečne črtice na vsakem obroču</text>
+
+  <!-- 5. Boundary Ring -->
+  <line x1="375" y1="225" x2="480" y2="270" stroke="#f43f5e" stroke-width="1.5"/>
+  <circle cx="480" cy="270" r="3" fill="#f43f5e"/>
+  <text x="485" y="268" fill="#f43f5e" font-size="13" font-weight="bold">Zunanji obroč (Boundary Ring)</text>
+  <text x="485" y="283" fill="#94a3b8" font-size="11">R_last + 14px (za CV detekcijo)</text>
+
+  <!-- 6. Data Arcs -->
+  <line x1="239" y1="321" x2="110" y2="360" stroke="#38bdf8" stroke-width="1.5"/>
+  <circle cx="110" cy="360" r="3" fill="#38bdf8"/>
+  <text x="105" y="358" fill="#38bdf8" font-size="13" font-weight="bold" text-anchor="end">Podatkovni loki (Data Arcs)</text>
+  <text x="105" y="373" fill="#94a3b8" font-size="11" text-anchor="end">Debelina 8px, razmik 14px</text>
+
+</svg>
