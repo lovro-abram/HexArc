@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HexArc Code v3 Generator & Scanner Simulator</title>
+    <title>HexArc Code Generator & Scanner Simulator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -13,7 +13,7 @@
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 flex flex-col items-center">
 
     <header class="text-center max-w-2xl mb-6">
-        <h1 class="text-3xl md:text-4xl font-bold text-blue-400 mb-2">HexArc Code v3</h1>
+        <h1 class="text-3xl md:text-4xl font-bold text-blue-400 mb-2">HexArc Code</h1>
     </header>
 
     <main class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -385,7 +385,7 @@
         function downloadCode() {
             const canvas = document.getElementById('hexCanvas');
             const link = document.createElement('a');
-            link.download = 'HexArc_v3_Code.png';
+            link.download = 'HexArc_Code.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
         }
