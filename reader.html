@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HexArc Code Bralnik</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 flex flex-col items-center">
+
+    <header class="text-center max-w-2xl mb-6">
+        <h1 class="text-3xl md:text-4xl font-bold text-blue-400 mb-2">HexArc Code</h1>
+        <nav class="flex justify-center gap-4 mt-3">
+            <a href="index.html" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-sm transition">Generator</a>
+            <a href="reader.html" class="px-4 py-1.5 rounded-lg bg-blue-600 text-white font-medium text-sm shadow">Bralnik</a>
+        </nav>
+    </header>
+
+    <main class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Controls & Results Panel -->
+        <section class="lg:col-span-5 bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+            <div>
+                <h2 class="text-xl font-semibold mb-4 text-white border-b border-slate-700 pb-2">Prebiranje Kode</h2>
+
+                <!-- File Upload / Drag & Drop -->
+                <div class="mb-5">
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                        Naloži sliko
+                    </label>
+                    <div id="dropZone"
+                         onclick="document.getElementById('fileInput').click()"
+                         class="border-2 border-dashed border-slate-600 hover:border-blue-500 bg-slate-900/50 hover:bg-slate-900 rounded-xl p-5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2">
+                        <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span class="text-sm font-medium text-slate-300">Klikni ali povleci sliko sem</span>
+                        <span class="text-xs text-slate-500">PNG, JPG, WEBP</span>
+                        <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                    </div>
+                </div>
+
+                <!-- Camera Stream Controls -->
+                <div class="mb-5">
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                        Skeniraj s kamero
+                    </label>
+                    <div class="flex flex-col gap-2">
+                        <select id="cameraSelect" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Privzeta kamera</option>
+                        </select>
+                        <button id="toggleCameraBtn" onclick="toggleCamera()"
+                                class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            Zaženi kamero
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Status Message -->
+                <div id="statusMsg" class="text-sm font-medium mb-4 min-h-[20px]"></div>
+
+                <!-- Decoded Output -->
+                <div>
+                    <label for="decodedOutput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                        Dekodirana Vsebina
+                    </label>
+                    <div class="relative">
+                        <textarea id="decodedOutput" readonly rows="4"
+                                  placeholder="Prebrana koda se bo prikazala tukaj..."
+                                  class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-emerald-400 font-mono text-sm placeholder-slate-600 focus:outline-none resize-none"></textarea>
+                        <button onclick="copyDecodedText()"
+                                class="absolute top-2 right-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded-lg border border-slate-600 transition">
+                            Kopiraj
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-slate-700 text-xs text-slate-400 text-center">
+                HexArc Code Reader • Avtomatska detekcija orientacije &amp; Reed-Solomon RS(256)
+            </div>
+        </section>
+
+        <!-- Canvas / Video Display Panel -->
+        <section class="lg:col-span-7 bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col items-center justify-center relative min-h-[480px]">
+            <div class="bg-white p-4 rounded-2xl shadow-inner max-w-full flex items-center justify-center relative">
+                <canvas id="readerCanvas" width="560" height="560" class="max-w-full h-auto rounded-lg"></canvas>
+                <video id="videoElement" autoplay playsinline class="hidden"></video>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // ECC GF(256) Constants and Reed-Solomon Code
+        const ECC_SYMBOLS = 16;
+        const GF_EXP = new Uint8Array(512);
+        const GF_LOG = new Uint8Array(256);
+
+        (function initGF() {
+            let x = 1;
+            for (let i = 0; i < 255; i++) {
+                GF_EXP[i] = x;
+                GF_LOG[x] = i;
+                x <<= 1;
+                if (x & 0x100) x ^= 0x11d;
+            }
+            for (let i = 255; i < 512; i++) {
+                GF_EXP[i] = GF_EXP[i - 255];
+            }
+        })();
+
+        function gfMul(x, y) {
+            if (x === 0 || y === 0) return 0;
+            return GF_EXP[GF_LOG[x] + GF_LOG[y]];
+        }
+
+        function gfInverse(x) {
+            if (x === 0) return 0;
+            return GF_EXP[255 - GF_LOG[x]];
+        }
+
+        function rsDecode(msg, nsym) {
+            const N = msg.length;
+            const syn = new Uint8Array(nsym);
+            let hasError = false;
+
+            for (let i = 0; i < nsym; i++) {
+                const root = GF_EXP[i];
+                let val = 0;
+                for (let j = 0; j < N; j++) {
+                    val = gfMul(val, root) ^ msg[j];
+                }
+                syn[i] = val;
+                if (val !== 0) hasError = true;
+            }
+
+            if (!hasError) {
+                return { corrected: msg, errorsCount: 0, success: true };
+            }
+
+            // Berlekamp-Massey Algorithm
+            let C = [1];
+            let B = [1];
+            let L = 0;
+            let m = 1;
+            let b = 1;
+
+            for (let i = 0; i < nsym; i++) {
+                let d = syn[i];
+                for (let j = 1; j <= L; j++) {
+                    if (j < C.length) {
+                        d ^= gfMul(C[j], syn[i - j]);
+                    }
+                }
+
+                if (d === 0) {
+                    m++;
+                } else {
+                    let T = C.slice();
+                    let coeff = gfMul(d, gfInverse(b));
+                    while (C.length < B.length + m) C.push(0);
+                    for (let j = 0; j < B.length; j++) {
+                        C[j + m] ^= gfMul(coeff, B[j]);
+                    }
+
+                    if (2 * L <= i) {
+                        L = i + 1 - L;
+                        B = T;
+                        b = d;
+                        m = 1;
+                    } else {
+                        m++;
+                    }
+                }
+            }
+
+            if (L > nsym / 2) {
+                return { success: false, error: "Preveč napak v kodi." };
+            }
+
+            // Chien Search
+            const errPos = [];
+            for (let pos = 0; pos < N; pos++) {
+                const X = GF_EXP[(N - 1 - pos) % 255];
+                const X_inv = gfInverse(X);
+                let val = 0;
+                let p = 1;
+                for (let j = 0; j < C.length; j++) {
+                    val ^= gfMul(C[j], p);
+                    p = gfMul(p, X_inv);
+                }
+                if (val === 0) {
+                    errPos.push(pos);
+                }
+            }
+
+            if (errPos.length !== L) {
+                return { success: false, error: "Razreševanje napak ni uspelo." };
+            }
+
+            // Forney Algorithm
+            const Omega = new Array(L).fill(0);
+            for (let i = 0; i < L; i++) {
+                let sum = 0;
+                for (let j = 0; j <= i; j++) {
+                    if (j < C.length) {
+                        sum ^= gfMul(C[j], syn[i - j]);
+                    }
+                }
+                Omega[i] = sum;
+            }
+
+            const corrected = new Uint8Array(msg);
+            for (let k = 0; k < errPos.length; k++) {
+                const pos = errPos[k];
+                const X = GF_EXP[(N - 1 - pos) % 255];
+                const X_inv = gfInverse(X);
+
+                let num = 0;
+                let p = 1;
+                for (let j = 0; j < L; j++) {
+                    num ^= gfMul(Omega[j], p);
+                    p = gfMul(p, X_inv);
+                }
+
+                let den = 0;
+                for (let j = 1; j < C.length; j += 2) {
+                    let p_den = 1;
+                    for (let m_i = 0; m_i < j - 1; m_i++) p_den = gfMul(p_den, X_inv);
+                    den ^= gfMul(C[j], p_den);
+                }
+
+                if (den === 0) return { success: false, error: "Forney deljenje z 0." };
+                const errVal = gfMul(X, gfMul(num, gfInverse(den)));
+                corrected[pos] ^= errVal;
+            }
+
+            return { corrected, errorsCount: errPos.length, success: true };
+        }
+
+        // Canonical Constants
+        const CANVAS_SIZE = 560;
+        const CENTER = CANVAS_SIZE / 2;
+        const HEX_RADIUS = 38;
+        const RING_START = 64;
+        const RING_GAP = 14;
+        const LINE_THICKNESS = 8;
+        const MAX_RADIUS = 200;
+        const KEEPOUT_MARGIN_PX = 14;
+        const AXIS_ANGLES = [-Math.PI / 2, Math.PI / 6, (5 * Math.PI) / 6];
+
+        let videoStream = null;
+        let isCameraActive = false;
+        let cameraInterval = null;
+
+        function showStatus(text, isError = false) {
+            const el = document.getElementById('statusMsg');
+            el.innerText = text;
+            el.className = isError ? "text-red-400 font-semibold text-sm mb-4" : "text-emerald-400 font-semibold text-sm mb-4";
+        }
+
+        function copyDecodedText() {
+            const area = document.getElementById('decodedOutput');
+            if (area.value) {
+                navigator.clipboard.writeText(area.value);
+                showStatus("Vsebina kopirana v odložišče!", false);
+            }
+        }
+
+        // Drag and Drop Handling
+        const dropZone = document.getElementById('dropZone');
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, e => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.add('border-blue-500', 'bg-slate-900');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.remove('border-blue-500', 'bg-slate-900');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', e => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function processFile(file) {
+            if (isCameraActive) stopCamera();
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.getElementById('readerCanvas');
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                    scanAndDecode();
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Camera Management
+        async function getCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                const select = document.getElementById('cameraSelect');
+                select.innerHTML = '<option value="">Privzeta kamera</option>';
+                videoDevices.forEach((device, i) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Kamera ${i + 1}`;
+                    select.appendChild(option);
+                });
+            } catch (err) {
+                console.warn("Napaka pri pridobivanju kamer:", err);
+            }
+        }
+
+        async function toggleCamera() {
+            if (isCameraActive) {
+                stopCamera();
+            } else {
+                await startCamera();
+            }
+        }
+
+        async function startCamera() {
+            const select = document.getElementById('cameraSelect');
+            const deviceId = select.value;
+            const constraints = {
+                video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' }
+            };
+
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = document.getElementById('videoElement');
+                video.srcObject = videoStream;
+                video.play();
+                isCameraActive = true;
+
+                const btn = document.getElementById('toggleCameraBtn');
+                btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> Zaustavi kamero`;
+                btn.className = "w-full bg-rose-600 hover:bg-rose-500 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2";
+
+                showStatus("Kamera aktivna. Postavi HexArc kodo pred kamero.", false);
+
+                cameraInterval = setInterval(() => {
+                    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                        const canvas = document.getElementById('readerCanvas');
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                        scanAndDecode(true);
+                    }
+                }, 200);
+
+            } catch (err) {
+                showStatus("Dostop do kamere ni mogoč ali pa je bil zavrnjen.", true);
+            }
+        }
+
+        function stopCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(t => t.stop());
+                videoStream = null;
+            }
+            if (cameraInterval) {
+                clearInterval(cameraInterval);
+                cameraInterval = null;
+            }
+            isCameraActive = false;
+            const btn = document.getElementById('toggleCameraBtn');
+            btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg> Zaženi kamero`;
+            btn.className = "w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2";
+            showStatus("Kamera je zaustavljena.", false);
+        }
+
+        // Image Analysis & Decoder Pipeline
+        function scanAndDecode(fromCamera = false) {
+            const canvas = document.getElementById('readerCanvas');
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            const pixels = imgData.data;
+
+            // Binarization & Grayscale array
+            const gray = new Uint8Array(CANVAS_SIZE * CANVAS_SIZE);
+            let totalLuma = 0;
+            for (let i = 0; i < pixels.length; i += 4) {
+                const g = Math.round(0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2]);
+                gray[i / 4] = g;
+                totalLuma += g;
+            }
+            const avgLuma = totalLuma / (CANVAS_SIZE * CANVAS_SIZE);
+            const threshold = avgLuma * 0.85;
+
+            function isDark(x, y) {
+                const rx = Math.round(x);
+                const ry = Math.round(y);
+                if (rx < 0 || rx >= CANVAS_SIZE || ry < 0 || ry >= CANVAS_SIZE) return false;
+                return gray[ry * CANVAS_SIZE + rx] < threshold;
+            }
+
+            // Search for center & orientation
+            let bestCenter = { x: CENTER, y: CENTER };
+            let bestAngleOffset = 0;
+            let bestScale = 1.0;
+
+            // 1. Check direct canonical orientation
+            let candidateFound = false;
+
+            // Sample along 3 canonical axes from center
+            function measureAxisProfile(cx, cy, angleOffset, scale) {
+                let tickCount = 0;
+                let activeRings = [];
+
+                for (let r = RING_START; r <= MAX_RADIUS; r += RING_GAP) {
+                    let darkCount = 0;
+                    for (let s = 0; s < 3; s++) {
+                        const a = AXIS_ANGLES[s] + angleOffset;
+                        const px = cx + (r * scale) * Math.cos(a);
+                        const py = cy + (r * scale) * Math.sin(a);
+                        if (isDark(px, py)) darkCount++;
+                    }
+                    if (darkCount >= 2) {
+                        tickCount++;
+                        activeRings.push(r);
+                    }
+                }
+                return { tickCount, activeRings };
+            }
+
+            let profile = measureAxisProfile(CENTER, CENTER, 0, 1.0);
+
+            // If direct sample didn't find ticks, perform local peak search for outer markers or center
+            if (profile.tickCount === 0) {
+                // Search center of dark mass
+                let sumX = 0, sumY = 0, count = 0;
+                for (let y = 40; y < CANVAS_SIZE - 40; y += 4) {
+                    for (let x = 40; x < CANVAS_SIZE - 40; x += 4) {
+                        if (isDark(x, y)) {
+                            sumX += x;
+                            sumY += y;
+                            count++;
+                        }
+                    }
+                }
+                if (count > 0) {
+                    bestCenter = { x: sumX / count, y: sumY / count };
+                    // Test angle offsets (0, 30, 60, 90, 120, 150, 180...)
+                    for (let deg = 0; deg < 360; deg += 15) {
+                        const rad = (deg * Math.PI) / 180;
+                        const testProf = measureAxisProfile(bestCenter.x, bestCenter.y, rad, 1.0);
+                        if (testProf.tickCount > profile.tickCount) {
+                            profile = testProf;
+                            bestAngleOffset = rad;
+                        }
+                    }
+                }
+            }
+
+            if (profile.activeRings.length === 0) {
+                // Default to at least 1 ring if center check failed
+                profile.activeRings = [RING_START];
+            }
+
+            const activeRings = profile.activeRings;
+            const lastDataRadius = activeRings[activeRings.length - 1];
+
+            // Bit Sampling Pipeline
+            const sampledBits = [];
+            const sampleOverlayPoints = [];
+
+            activeRings.forEach(r => {
+                const keepoutAngle = KEEPOUT_MARGIN_PX / r;
+                const usableSectorAngle = ((2 * Math.PI) / 3) - (2 * keepoutAngle);
+                const bitsPerSector = Math.floor((usableSectorAngle * r) / (LINE_THICKNESS + 2));
+                const anglePerBit = usableSectorAngle / bitsPerSector;
+
+                if (bitsPerSector > 0) {
+                    for (let s = 0; s < 3; s++) {
+                        const startSectorAngle = AXIS_ANGLES[s] + keepoutAngle + bestAngleOffset;
+
+                        for (let b = 0; b < bitsPerSector; b++) {
+                            const bitMidAngle = startSectorAngle + (b + 0.5) * anglePerBit;
+                            const sx = bestCenter.x + (r * bestScale) * Math.cos(bitMidAngle);
+                            const sy = bestCenter.y + (r * bestScale) * Math.sin(bitMidAngle);
+
+                            // Sample 3x3 block around bit center for noise resistance
+                            let darkPixels = 0;
+                            for (let dx = -1; dx <= 1; dx++) {
+                                for (let dy = -1; dy <= 1; dy++) {
+                                    if (isDark(sx + dx, sy + dy)) darkPixels++;
+                                }
+                            }
+
+                            const bitVal = darkPixels >= 5 ? 1 : 0;
+                            sampledBits.push(bitVal);
+                            sampleOverlayPoints.push({ x: sx, y: sy, bit: bitVal });
+                        }
+                    }
+                }
+            });
+
+            // Reconstruct Bytes from Bits
+            const rawBytes = [];
+            for (let i = 0; i < sampledBits.length; i += 8) {
+                let byteVal = 0;
+                for (let b = 0; b < 8; b++) {
+                    if (i + b < sampledBits.length) {
+                        byteVal = (byteVal << 1) | sampledBits[i + b];
+                    } else {
+                        byteVal = (byteVal << 1);
+                    }
+                }
+                rawBytes.push(byteVal);
+            }
+
+            if (rawBytes.length < ECC_SYMBOLS + 2) {
+                if (!fromCamera) showStatus("Koda ni bila prepoznana. Poskusite z bolj čisto sliko.", true);
+                return;
+            }
+
+            // Reed-Solomon Error Correction
+            const decodeResult = rsDecode(new Uint8Array(rawBytes), ECC_SYMBOLS);
+
+            if (!decodeResult.success) {
+                if (!fromCamera) showStatus("Napaka pri odpravljanju napak (RS decoder): " + decodeResult.error, true);
+                return;
+            }
+
+            // Parse Bitstream Payload
+            const correctedBytes = decodeResult.corrected;
+            const bitArray = [];
+            correctedBytes.forEach(b => {
+                for (let i = 7; i >= 0; i--) bitArray.push((b >> i) & 1);
+            });
+
+            function readBits(start, count) {
+                let val = 0;
+                for (let i = 0; i < count; i++) {
+                    val = (val << 1) | (bitArray[start + i] || 0);
+                }
+                return val;
+            }
+
+            const modeIndicator = readBits(0, 3);
+            const lengthIndicator = readBits(3, 12);
+            let decodedText = "";
+
+            if (modeIndicator === 1) { // Numeric Mode
+                for (let i = 0; i < lengthIndicator; i++) {
+                    const digit = readBits(15 + i * 4, 4);
+                    decodedText += digit.toString();
+                }
+            } else if (modeIndicator === 2) { // Text / UTF-8 Mode
+                const payloadBytes = [];
+                for (let i = 0; i < lengthIndicator; i++) {
+                    const byteVal = readBits(15 + i * 8, 8);
+                    payloadBytes.push(byteVal);
+                }
+                decodedText = new TextDecoder().decode(new Uint8Array(payloadBytes));
+            } else {
+                if (!fromCamera) showStatus("Neznan način kodiranja (" + modeIndicator + ").", true);
+                return;
+            }
+
+            // Output Decoded Result
+            document.getElementById('decodedOutput').value = decodedText;
+            const errInfo = decodeResult.errorsCount > 0 ? ` (${decodeResult.errorsCount} napak popravljenih)` : "";
+            showStatus("Koda uspešno prebrana!" + errInfo, false);
+
+            // Render Visual Sampling Overlay on Canvas
+            drawOverlay(ctx, bestCenter, sampleOverlayPoints);
+        }
+
+        function drawOverlay(ctx, center, points) {
+            // Draw visual sampling indicator dots
+            points.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 3, 0, 2 * Math.PI);
+                ctx.fillStyle = p.bit === 1 ? '#10b981' : '#f43f5e'; // Green for 1, Red for 0
+                ctx.fill();
+            });
+
+            // Draw detected center mark
+            ctx.beginPath();
+            ctx.arc(center.x, center.y, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = '#3b82f6';
+            ctx.fill();
+        }
+
+        window.onload = function() {
+            getCameras();
+            // Draw clean canvas placeholder
+            const canvas = document.getElementById('readerCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '16px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Naloži sliko ali zaženi kamero za prebiranje', CENTER, CENTER);
+        };
+    </script>
+</body>
+</html>
